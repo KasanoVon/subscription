@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import type { Currency } from '../types';
 
 interface HeaderProps {
@@ -7,10 +9,14 @@ interface HeaderProps {
 
 export function Header({ onAddClick }: HeaderProps) {
   const { state, dispatch } = useApp();
+  const { authState, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function setCurrency(c: Currency) {
     dispatch({ type: 'SET_DISPLAY_CURRENCY', payload: c });
   }
+
+  const username = authState.currentUser?.username ?? '';
 
   return (
     <header
@@ -31,10 +37,7 @@ export function Header({ onAddClick }: HeaderProps) {
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span style={{ fontSize: '1.6rem' }}>✏️</span>
-        <h1
-          className="p-heading p-heading--lg"
-          style={{ lineHeight: 1 }}
-        >
+        <h1 className="p-heading p-heading--lg" style={{ lineHeight: 1 }}>
           SubNote
         </h1>
       </div>
@@ -62,6 +65,111 @@ export function Header({ onAddClick }: HeaderProps) {
           <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>＋</span>
           追加
         </button>
+
+        {/* User Menu */}
+        <div style={{ position: 'relative' }}>
+          <button
+            className="p-btn p-btn--ghost"
+            onClick={() => setMenuOpen((v) => !v)}
+            style={{
+              padding: '6px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              border: '1.5px solid var(--pencil-line)',
+            }}
+            aria-label="ユーザーメニュー"
+          >
+            <span
+              style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                background: 'var(--ink)',
+                color: 'var(--paper-base)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--font-sketch)',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                flexShrink: 0,
+              }}
+            >
+              {username.charAt(0).toUpperCase()}
+            </span>
+            <span
+              style={{
+                fontFamily: 'var(--font-sketch)',
+                fontSize: '0.95rem',
+                maxWidth: '100px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {username}
+            </span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--ink-light)' }}>▾</span>
+          </button>
+
+          {/* Dropdown */}
+          {menuOpen && (
+            <>
+              {/* Backdrop */}
+              <div
+                style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+                onClick={() => setMenuOpen(false)}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 6px)',
+                  background: 'var(--paper-base)',
+                  border: '1.5px solid var(--ink)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-md)',
+                  minWidth: '160px',
+                  zIndex: 100,
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    borderBottom: '1px dashed var(--pencil-line)',
+                    fontSize: '0.85rem',
+                    color: 'var(--ink-light)',
+                  }}
+                >
+                  <span style={{ fontFamily: 'var(--font-sketch)', fontWeight: 700, color: 'var(--ink)', display: 'block' }}>
+                    {username}
+                  </span>
+                  としてログイン中
+                </div>
+                <button
+                  className="p-btn p-btn--ghost"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    logout();
+                  }}
+                  style={{
+                    width: '100%',
+                    justifyContent: 'flex-start',
+                    borderRadius: '0',
+                    padding: '10px 14px',
+                    color: 'var(--red)',
+                    fontSize: '0.95rem',
+                    boxShadow: 'none',
+                  }}
+                >
+                  ↩ ログアウト
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -1,3 +1,10 @@
+export interface User {
+  id: string;
+  username: string;
+  passwordHash: string; // SHA-256 hex (注: 本番では bcrypt + バックエンドを使用すること)
+  createdAt: string;
+}
+
 export type Currency = 'JPY' | 'USD';
 export type BillingCycle = 'monthly' | 'yearly' | 'weekly';
 export type SubscriptionStatus = 'active' | 'paused' | 'cancelled';

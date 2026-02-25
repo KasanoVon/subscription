@@ -11,8 +11,8 @@ type Action =
   | { type: 'SET_EXCHANGE_RATE'; payload: number }
   | { type: 'LOAD_STATE'; payload: AppState };
 
-const initialState: AppState = {
-  subscriptions: DEFAULT_SUBSCRIPTIONS,
+const emptyState: AppState = {
+  subscriptions: [],
   displayCurrency: 'JPY',
   exchangeRate: RATE,
 };
@@ -20,10 +20,7 @@ const initialState: AppState = {
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'ADD_SUBSCRIPTION':
-      return {
-        ...state,
-        subscriptions: [...state.subscriptions, action.payload],
-      };
+      return { ...state, subscriptions: [...state.subscriptions, action.payload] };
     case 'UPDATE_SUBSCRIPTION':
       return {
         ...state,
@@ -54,28 +51,42 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-const STORAGE_KEY = 'subnote_state';
+// ユーザーごとのストレージキー
+function storageKey(userId: string) {
+  return `subnote_state_${userId}`;
+}
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+interface AppProviderProps {
+  userId: string;
+  children: React.ReactNode;
+}
 
-  // ローカルストレージから復元
+export function AppProvider({ userId, children }: AppProviderProps) {
+  const [state, dispatch] = useReducer(reducer, emptyState);
+
+  // ユーザー切替 or 初回: ローカルストレージから復元
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(storageKey(userId));
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as AppState;
         dispatch({ type: 'LOAD_STATE', payload: parsed });
+        return;
       } catch {
-        // ignore
+        // 壊れていたら初期データを使用
       }
     }
-  }, []);
+    // 初回ログインはサンプルデータで開始
+    dispatch({
+      type: 'LOAD_STATE',
+      payload: { ...emptyState, subscriptions: DEFAULT_SUBSCRIPTIONS },
+    });
+  }, [userId]);
 
-  // ローカルストレージへ保存
+  // 状態変化をローカルストレージへ保存
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    localStorage.setItem(storageKey(userId), JSON.stringify(state));
+  }, [state, userId]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
