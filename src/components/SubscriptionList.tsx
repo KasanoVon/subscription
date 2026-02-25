@@ -1,0 +1,123 @@
+import { useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { SubscriptionCard } from './SubscriptionCard';
+import type { Subscription, SubscriptionStatus } from '../types';
+
+interface SubscriptionListProps {
+  onEdit: (s: Subscription) => void;
+}
+
+const STATUS_FILTERS: { label: string; value: SubscriptionStatus | 'all' }[] = [
+  { label: 'すべて', value: 'all' },
+  { label: 'アクティブ', value: 'active' },
+  { label: '停止中', value: 'paused' },
+  { label: 'キャンセル', value: 'cancelled' },
+];
+
+export function SubscriptionList({ onEdit }: SubscriptionListProps) {
+  const { state, dispatch } = useApp();
+  const [filterStatus, setFilterStatus] = useState<SubscriptionStatus | 'all'>('all');
+  const [search, setSearch] = useState('');
+
+  const filtered = state.subscriptions.filter((s) => {
+    const matchStatus = filterStatus === 'all' || s.status === filterStatus;
+    const matchSearch =
+      search === '' ||
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.category.toLowerCase().includes(search.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  function handleDelete(id: string) {
+    dispatch({ type: 'DELETE_SUBSCRIPTION', payload: id });
+  }
+
+  return (
+    <section style={{ padding: '0 20px 40px' }}>
+      {/* Section Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          marginBottom: '16px',
+        }}
+      >
+        <h2 className="p-heading p-heading--md">
+          📋 サブスクリプション一覧
+          <span
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.85rem',
+              color: 'var(--ink-light)',
+              fontWeight: 400,
+              marginLeft: '8px',
+            }}
+          >
+            ({filtered.length} 件)
+          </span>
+        </h2>
+
+        {/* Search */}
+        <input
+          type="search"
+          className="p-input"
+          placeholder="🔍 検索..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ maxWidth: '220px' }}
+        />
+      </div>
+
+      {/* Status Filter */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+        {STATUS_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            className={`p-btn p-btn--sm${filterStatus === f.value ? ' p-btn--primary' : ''}`}
+            onClick={() => setFilterStatus(f.value)}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Cards Grid */}
+      {filtered.length === 0 ? (
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '60px 20px',
+            color: 'var(--ink-faint)',
+            fontFamily: 'var(--font-sketch)',
+            fontSize: '1.1rem',
+          }}
+        >
+          <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📝</div>
+          {search || filterStatus !== 'all'
+            ? '条件に一致するサブスクリプションがありません'
+            : 'サブスクリプションを追加してください'}
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '14px',
+          }}
+        >
+          {filtered.map((s) => (
+            <SubscriptionCard
+              key={s.id}
+              subscription={s}
+              onEdit={onEdit}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
