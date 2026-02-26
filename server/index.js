@@ -15,6 +15,8 @@ const SESSION_DAYS = 30;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? 'https://subnote.up.railway.app';
 // Capacitor (Android/iOS) のオリジン
 const CAPACITOR_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://localhost', 'ionic://localhost'];
+// ローカル開発用
+const LOCAL_DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:4173'];
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,7 +66,7 @@ const isProd = process.env.NODE_ENV === 'production';
 const app = express();
 // Railway等のリバースプロキシを信頼する（レートリミットの正確なIP識別に必要）
 app.set('trust proxy', 1);
-const allowedOrigins = [ALLOWED_ORIGIN, ...CAPACITOR_ORIGINS];
+const allowedOrigins = [ALLOWED_ORIGIN, ...CAPACITOR_ORIGINS, ...LOCAL_DEV_ORIGINS];
 app.use(cors({
   origin: (origin, callback) => {
     // originがない場合（同一オリジンやサーバー間通信）は許可
