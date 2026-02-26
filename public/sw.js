@@ -44,3 +44,32 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cached) => cached ?? fetch(request))
   );
 });
+
+// プッシュ通知受信
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  const data = event.data.json();
+  event.waitUntil(
+    self.registration.showNotification(data.title ?? 'SubNote', {
+      body: data.body ?? '',
+      icon: data.icon ?? '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { url: data.url ?? '/app' },
+    })
+  );
+});
+
+// 通知クリックでアプリを開く
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data?.url ?? '/app');
+      }
+    })
+  );
+});

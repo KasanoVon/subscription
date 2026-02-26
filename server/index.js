@@ -7,6 +7,8 @@ import cors from 'cors';
 import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@libsql/client';
 import bcrypt from 'bcryptjs';
+import webpush from 'web-push';
+import cron from 'node-cron';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_DAYS = 30;
@@ -19,8 +21,6 @@ const __dirname = path.dirname(__filename);
 const distPath = path.join(__dirname, '..', 'dist');
 
 // Turso (libSQL) クライアント
-// 本番: TURSO_DATABASE_URL と TURSO_AUTH_TOKEN を Railway 環境変数で設定
-// ローカル開発: ファイルベースのSQLiteを使用
 const tursoUrl = process.env.TURSO_DATABASE_URL ?? `file:${path.join(__dirname, 'subnote.db')}`;
 const client = createClient({
   url: tursoUrl,
@@ -67,7 +67,137 @@ await client.executeMultiple(`
     updated_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    user_id TEXT PRIMARY KEY,
+    subscription_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
 `);
+
+// VAPID キー初期化（DBに保存して永続化）
+let vapidPublicKey = '';
+
+async function initVapidKeys() {
+  let publicKey = process.env.VAPID_PUBLIC_KEY;
+  let privateKey = process.env.VAPID_PRIVATE_KEY;
+
+  if (!publicKey || !privateKey) {
+    const pubRow = await db.get("SELECT value FROM app_settings WHERE key = 'vapid_public_key'");
+    const privRow = await db.get("SELECT value FROM app_settings WHERE key = 'vapid_private_key'");
+
+    if (pubRow && privRow) {
+      publicKey = pubRow.value;
+      privateKey = privRow.value;
+    } else {
+      const keys = webpush.generateVAPIDKeys();
+      publicKey = keys.publicKey;
+      privateKey = keys.privateKey;
+      await db.run(
+        "INSERT INTO app_settings (key, value) VALUES ('vapid_public_key', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        publicKey
+      );
+      await db.run(
+        "INSERT INTO app_settings (key, value) VALUES ('vapid_private_key', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        privateKey
+      );
+      console.log('[VAPID] 新しいキーを生成してDBに保存しました');
+    }
+  }
+
+  webpush.setVapidDetails(
+    `mailto:${process.env.VAPID_EMAIL ?? 'noreply@subnote.app'}`,
+    publicKey,
+    privateKey
+  );
+  vapidPublicKey = publicKey;
+  console.log('[VAPID] キー初期化完了');
+}
+
+await initVapidKeys();
+
+// 通知送信ユーティリティ
+function addDaysToDateStr(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function getTodayJST() {
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return jst.toISOString().slice(0, 10);
+}
+
+async function sendRenewalNotifications() {
+  try {
+    const today = getTodayJST();
+    const in1day = addDaysToDateStr(today, 1);
+    const in3days = addDaysToDateStr(today, 3);
+
+    const rows = await db.all(`
+      SELECT ps.user_id, ps.subscription_json, us.state_json
+      FROM push_subscriptions ps
+      JOIN user_states us ON us.user_id = ps.user_id
+    `);
+
+    let notifCount = 0;
+    for (const row of rows) {
+      try {
+        const state = JSON.parse(row.state_json);
+        const pushSub = JSON.parse(row.subscription_json);
+        const subs = state?.subscriptions ?? [];
+
+        for (const sub of subs) {
+          if (sub.status !== 'active') continue;
+
+          const daysUntil =
+            sub.nextBillingDate === in1day ? 1 :
+            sub.nextBillingDate === in3days ? 3 :
+            null;
+          if (daysUntil === null) continue;
+
+          const amount = sub.currency === 'JPY'
+            ? `¥${Number(sub.amount).toLocaleString('ja-JP')}`
+            : `$${sub.amount}`;
+          const timing = daysUntil === 1 ? '明日' : '3日後';
+
+          await webpush.sendNotification(
+            pushSub,
+            JSON.stringify({
+              title: `${sub.name} の更新は${timing}です`,
+              body: `${amount} が請求される予定です`,
+              icon: '/icon-192.png',
+              url: '/app',
+            })
+          );
+          notifCount++;
+        }
+      } catch (e) {
+        console.error('[Push] ユーザー', row.user_id, 'への送信エラー:', e.message);
+        // 期限切れ・無効なサブスクリプションは削除
+        if (e.statusCode === 410 || e.statusCode === 404) {
+          await db.run('DELETE FROM push_subscriptions WHERE user_id = ?', row.user_id);
+        }
+      }
+    }
+    if (notifCount > 0) console.log(`[Push] ${notifCount}件の通知を送信しました`);
+  } catch (e) {
+    console.error('[Push] cron エラー:', e.message);
+  }
+}
+
+// 毎朝 9:00 JST (= 0:00 UTC) に通知チェック
+cron.schedule('0 0 * * *', () => {
+  console.log('[Cron] 更新通知チェック開始...');
+  void sendRenewalNotifications();
+});
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -104,7 +234,7 @@ app.get('/', (_req, res) => {
   res.json({
     ok: true,
     service: 'subnote-auth-api',
-    endpoints: ['/api/auth/register', '/api/auth/login', '/api/auth/session', '/api/auth/logout', '/api/state'],
+    endpoints: ['/api/auth/register', '/api/auth/login', '/api/auth/session', '/api/auth/logout', '/api/state', '/api/push-subscription'],
   });
 });
 
@@ -316,6 +446,50 @@ app.post('/api/auth/logout', async (req, res) => {
     if (token) {
       await db.run('DELETE FROM sessions WHERE token = ?', token);
     }
+    return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// プッシュ通知エンドポイント
+app.get('/api/vapid-public-key', (_req, res) => {
+  if (!vapidPublicKey) return res.status(503).json({ error: 'vapid_not_ready' });
+  res.json({ publicKey: vapidPublicKey });
+});
+
+app.post('/api/push-subscription', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+
+    const subscription = req.body?.subscription;
+    if (!subscription || typeof subscription !== 'object') {
+      return res.status(400).json({ error: 'invalid_subscription' });
+    }
+
+    await db.run(
+      `INSERT INTO push_subscriptions (user_id, subscription_json, created_at) VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET subscription_json = excluded.subscription_json, created_at = excluded.created_at`,
+      user.id,
+      JSON.stringify(subscription),
+      new Date().toISOString()
+    );
+
+    return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.delete('/api/push-subscription', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+
+    await db.run('DELETE FROM push_subscriptions WHERE user_id = ?', user.id);
     return res.status(204).send();
   } catch (error) {
     console.error(error);

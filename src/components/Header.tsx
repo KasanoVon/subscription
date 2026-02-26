@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import type { Currency } from '../types';
 
 interface HeaderProps {
@@ -11,6 +12,7 @@ export function Header({ onAddClick }: HeaderProps) {
   const { state, dispatch } = useApp();
   const { authState, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const push = usePushNotifications(authState.token ?? '');
 
   function setCurrency(c: Currency) {
     dispatch({ type: 'SET_DISPLAY_CURRENCY', payload: c });
@@ -59,6 +61,20 @@ export function Header({ onAddClick }: HeaderProps) {
             $ USD
           </button>
         </div>
+
+        {/* Notification Bell */}
+        {push.supported && push.permission !== 'denied' && (
+          <button
+            className="p-btn p-btn--ghost p-btn--icon"
+            onClick={() => push.subscribed ? push.unsubscribe() : push.subscribe()}
+            disabled={push.loading}
+            title={push.subscribed ? '通知をオフにする' : '更新通知をオンにする'}
+            aria-label={push.subscribed ? '通知をオフにする' : '更新通知をオンにする'}
+            style={{ fontSize: '1.2rem', opacity: push.loading ? 0.5 : 1 }}
+          >
+            {push.subscribed ? '🔔' : '🔕'}
+          </button>
+        )}
 
         {/* Add Button */}
         <button className="p-btn p-btn--primary" onClick={onAddClick}>
