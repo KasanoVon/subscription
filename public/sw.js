@@ -1,8 +1,6 @@
-const CACHE_NAME = 'subnote-v1';
+const CACHE_NAME = 'subnote-v2';
+// HTMLは毎回ネットワークから取得（Viteがハッシュ付きJSを生成するため古いHTMLをキャッシュしない）
 const STATIC_ASSETS = [
-  '/',
-  '/app',
-  '/login',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
@@ -33,7 +31,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // その他はキャッシュ優先、なければネットワーク
+  // HTMLはネットワーク優先（Viteのハッシュ付きJSと整合性を保つため）
+  if (request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(request).then((r) => r ?? fetch(request)))
+    );
+    return;
+  }
+
+  // 静的アセット（JS/CSS/画像）はキャッシュ優先、なければネットワーク
   event.respondWith(
     caches.match(request).then((cached) => cached ?? fetch(request))
   );
