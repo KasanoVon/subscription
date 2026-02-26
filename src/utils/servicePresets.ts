@@ -17,6 +17,7 @@ export const SERVICE_PRESETS: ServicePreset[] = [
   { name: 'Amazon Prime', amount: 600, currency: 'JPY', billingCycle: 'monthly', category: 'エンタメ', url: 'https://amazon.co.jp/prime' },
   { name: 'Amazon Prime (年払い)', amount: 5900, currency: 'JPY', billingCycle: 'yearly', category: 'エンタメ', url: 'https://amazon.co.jp/prime' },
   { name: 'Disney+', amount: 990, currency: 'JPY', billingCycle: 'monthly', category: 'エンタメ', url: 'https://disneyplus.com' },
+  { name: 'Disney+ (年払い)', amount: 9900, currency: 'JPY', billingCycle: 'yearly', category: 'エンタメ', url: 'https://disneyplus.com' },
   { name: 'Apple TV+', amount: 900, currency: 'JPY', billingCycle: 'monthly', category: 'エンタメ', url: 'https://tv.apple.com' },
   { name: 'Hulu', amount: 1026, currency: 'JPY', billingCycle: 'monthly', category: 'エンタメ', url: 'https://hulu.jp' },
   { name: 'U-NEXT', amount: 2189, currency: 'JPY', billingCycle: 'monthly', category: 'エンタメ', url: 'https://video.unext.jp' },
