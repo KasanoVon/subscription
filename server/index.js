@@ -320,4 +320,5 @@ if (isProd) {
 app.listen(PORT, () => {
   console.log(`Auth API server running on http://localhost:${PORT}`);
   console.log(`SQLite DB: ${dbPath}`);
+  console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
 });
