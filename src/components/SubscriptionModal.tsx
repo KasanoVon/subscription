@@ -230,6 +230,15 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
                     </span>
                   </button>
                 ))}
+                <div style={{
+                  padding: '5px 12px',
+                  fontSize: '0.72rem',
+                  color: 'var(--ink-light)',
+                  borderTop: '1px solid var(--paper-darker)',
+                  background: 'var(--paper-warm)',
+                }}>
+                  ※ 金額は参考値です。実際の価格をご確認ください
+                </div>
               </div>
             )}
           </div>
