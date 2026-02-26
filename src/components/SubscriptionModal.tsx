@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Subscription, Currency, BillingCycle, SubscriptionStatus } from '../types';
 import { CATEGORIES, CATEGORY_COLORS } from '../types';
 import { useApp } from '../context/AppContext';
 import { todayISOString } from '../utils/date';
+import { searchPresets, type ServicePreset } from '../utils/servicePresets';
 
 interface SubscriptionModalProps {
   editing: Subscription | null;
@@ -47,6 +48,10 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
   const { dispatch } = useApp();
   const [form, setForm] = useState(DEFAULT_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [suggestions, setSuggestions] = useState<ServicePreset[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (editing) {
@@ -56,11 +61,54 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
       setForm(DEFAULT_FORM);
     }
     setErrors({});
+    setSuggestions([]);
+    setShowSuggestions(false);
   }, [editing]);
+
+  // クリック外でサジェストを閉じる
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target as Node) &&
+        nameInputRef.current &&
+        !nameInputRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: '' }));
+  }
+
+  function handleNameChange(value: string) {
+    set('name', value);
+    if (!editing) {
+      const results = searchPresets(value);
+      setSuggestions(results);
+      setShowSuggestions(results.length > 0);
+    }
+  }
+
+  function applyPreset(preset: ServicePreset) {
+    const color = CATEGORY_COLORS[preset.category] ?? COLOR_PRESETS[0];
+    setForm((prev) => ({
+      ...prev,
+      name: preset.name,
+      amount: preset.amount,
+      currency: preset.currency,
+      billingCycle: preset.billingCycle,
+      category: preset.category,
+      url: preset.url,
+      color,
+    }));
+    setErrors({});
+    setShowSuggestions(false);
   }
 
   function validate(): boolean {
@@ -107,19 +155,83 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* Service Name */}
-          <div className="p-form-group">
+          {/* Service Name with Autocomplete */}
+          <div className="p-form-group" style={{ position: 'relative' }}>
             <label className="p-label" htmlFor="name">サービス名 *</label>
             <input
+              ref={nameInputRef}
               id="name"
               className="p-input"
               type="text"
               value={form.name}
-              onChange={(e) => set('name', e.target.value)}
-              placeholder="例: Netflix, Spotify..."
+              onChange={(e) => handleNameChange(e.target.value)}
+              onFocus={() => {
+                if (suggestions.length > 0) setShowSuggestions(true);
+              }}
+              placeholder="例: Netflix, Spotify... (入力で候補が出ます)"
               autoFocus
+              autoComplete="off"
             />
             {errors.name && <ErrorMsg msg={errors.name} />}
+
+            {/* Suggestions Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div
+                ref={suggestionsRef}
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  zIndex: 100,
+                  background: 'var(--paper-base)',
+                  border: '1.5px solid var(--ink)',
+                  borderRadius: 'var(--radius-sm)',
+                  boxShadow: '2px 3px 0 rgba(44,43,38,0.15)',
+                  marginTop: '2px',
+                  overflow: 'hidden',
+                }}
+              >
+                {suggestions.map((preset, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyPreset(preset);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '9px 12px',
+                      background: 'none',
+                      border: 'none',
+                      borderBottom: i < suggestions.length - 1 ? '1px solid var(--paper-darker)' : 'none',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: '0.9rem',
+                      color: 'var(--ink)',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = 'var(--paper-warm)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = 'none';
+                    }}
+                  >
+                    <span style={{ fontWeight: 500 }}>{preset.name}</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--ink-light)', flexShrink: 0, marginLeft: '8px' }}>
+                      {preset.currency === 'JPY' ? `¥${preset.amount.toLocaleString()}` : `$${preset.amount}`}
+                      {' / '}
+                      {preset.billingCycle === 'monthly' ? '月' : preset.billingCycle === 'yearly' ? '年' : '週'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Amount + Currency */}
@@ -187,7 +299,7 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
             </div>
           </div>
 
-          {/* Custom Cycle Days (shown only when 'custom' is selected) */}
+          {/* Custom Cycle Days */}
           {form.billingCycle === 'custom' && (
             <div className="p-form-group">
               <label className="p-label" htmlFor="customCycleDays">請求間隔（日数）</label>
