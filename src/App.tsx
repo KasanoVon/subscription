@@ -87,18 +87,61 @@ function AppDashboard({ userId, authToken }: { userId: string; authToken: string
             fontSize: '0.82rem',
             color: 'var(--ink-light)',
             fontFamily: 'var(--font-body)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '16px',
+            flexWrap: 'wrap',
           }}
         >
-          お問い合わせ：
-          <a
-            href="https://x.com/KasanoVon"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--ink)', textDecoration: 'underline' }}
+          <span>
+            お問い合わせ：
+            <a
+              href="https://x.com/KasanoVon"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--ink)', textDecoration: 'underline' }}
+            >
+              @KasanoVon
+            </a>
+            {' '}on X
+          </span>
+
+          <button
+            onClick={() => {
+              const shareData = {
+                title: 'SubNote - サブスクリプション管理',
+                text: 'サブスクをまとめて管理・通知が届くアプリ',
+                url: 'https://subnote.up.railway.app',
+              };
+              if (navigator.share) {
+                navigator.share(shareData).catch(() => {});
+              } else {
+                const xUrl = `https://x.com/intent/tweet?text=${encodeURIComponent(shareData.text)}&url=${encodeURIComponent(shareData.url)}`;
+                window.open(xUrl, '_blank', 'noopener,noreferrer');
+              }
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              background: 'none',
+              border: '1.5px solid var(--paper-darker)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '4px 10px',
+              fontSize: '0.8rem',
+              color: 'var(--ink)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-body)',
+            }}
           >
-            @KasanoVon
-          </a>
-          {' '}on X
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+              <polyline points="16 6 12 2 8 6"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+            シェア
+          </button>
         </footer>
 
         {modalOpen && <SubscriptionModal editing={editing} onClose={closeModal} />}
