@@ -14,7 +14,7 @@ const SESSION_DAYS = 30;
 // 本番では環境変数で指定: ALLOWED_ORIGIN=https://yourdomain.com
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? 'https://subnote.up.railway.app';
 // Capacitor (Android/iOS) のオリジン
-const CAPACITOR_ORIGINS = ['capacitor://localhost', 'http://localhost', 'ionic://localhost'];
+const CAPACITOR_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://localhost', 'ionic://localhost'];
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
