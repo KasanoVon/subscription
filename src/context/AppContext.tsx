@@ -91,6 +91,8 @@ interface AppProviderProps {
   children: React.ReactNode;
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+
 function authHeaders(token: string) {
   return {
     Authorization: `Bearer ${token}`,
@@ -119,7 +121,7 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
         : { ...emptyState, subscriptions: DEFAULT_SUBSCRIPTIONS };
 
       try {
-        const res = await fetch('/api/state', {
+        const res = await fetch(`${API_BASE}/api/state`, {
           headers: { Authorization: `Bearer ${authToken}` },
         });
 
@@ -159,7 +161,7 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      void fetch('/api/state', {
+      void fetch(`${API_BASE}/api/state`, {
         method: 'PUT',
         headers: authHeaders(authToken),
         body: JSON.stringify({ state }),

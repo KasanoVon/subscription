@@ -14,6 +14,7 @@ type AuthAction =
 
 const TOKEN_KEY = 'subnote_auth_token';
 const USER_KEY = 'subnote_auth_user';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
 function readCachedUser(): User | null {
   const raw = localStorage.getItem(USER_KEY);
@@ -98,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const res = await fetch('/api/auth/session', {
+        const res = await fetch(`${API_BASE}/api/auth/session`, {
           headers: buildAuthHeader(token),
         });
         if (res.status === 401 || res.status === 403) {
@@ -153,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function login(username: string, password: string): Promise<'ok' | 'invalid'> {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password }),
@@ -169,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function register(username: string, password: string): Promise<'ok' | 'taken'> {
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: username.trim(), password }),
@@ -187,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   function logout() {
     const token = authState.token;
     if (token) {
-      void fetch('/api/auth/logout', {
+      void fetch(`${API_BASE}/api/auth/logout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

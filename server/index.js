@@ -13,6 +13,8 @@ const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_DAYS = 30;
 // 本番では環境変数で指定: ALLOWED_ORIGIN=https://yourdomain.com
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? 'http://localhost:5173';
+// Capacitor (Android/iOS) のオリジン
+const CAPACITOR_ORIGINS = ['capacitor://localhost', 'http://localhost', 'ionic://localhost'];
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,8 +64,16 @@ const isProd = process.env.NODE_ENV === 'production';
 const app = express();
 // Railway等のリバースプロキシを信頼する（レートリミットの正確なIP識別に必要）
 app.set('trust proxy', 1);
+const allowedOrigins = [ALLOWED_ORIGIN, ...CAPACITOR_ORIGINS];
 app.use(cors({
-  origin: ALLOWED_ORIGIN,
+  origin: (origin, callback) => {
+    // originがない場合（同一オリジンやサーバー間通信）は許可
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
