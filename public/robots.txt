@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Allow: /login
+Disallow: /app
+
+Sitemap: https://subnote.up.railway.app/sitemap.xml
