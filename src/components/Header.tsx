@@ -62,37 +62,6 @@ export function Header({ onAddClick }: HeaderProps) {
           </button>
         </div>
 
-        {/* Notification Bell */}
-        {push.supported && (
-          <button
-            className="p-btn p-btn--ghost p-btn--icon"
-            onClick={() => {
-              if (push.permission === 'denied') {
-                alert('通知がブロックされています。\nブラウザのアドレスバー左の🔒アイコン → サイトの設定 → 通知を「許可」に変更してください。');
-              } else if (push.subscribed) {
-                push.unsubscribe();
-              } else {
-                push.subscribe();
-              }
-            }}
-            disabled={push.loading}
-            title={
-              push.permission === 'denied'
-                ? '通知がブロックされています（ブラウザ設定で許可してください）'
-                : push.subscribed
-                ? '通知をオフにする'
-                : '更新3日前・前日に通知を受け取る'
-            }
-            aria-label="通知設定"
-            style={{
-              fontSize: '1.2rem',
-              opacity: push.loading ? 0.5 : push.permission === 'denied' ? 0.4 : 1,
-            }}
-          >
-            {push.subscribed ? '🔔' : '🔕'}
-          </button>
-        )}
-
         {/* Add Button */}
         <button className="p-btn p-btn--primary" onClick={onAddClick}>
           <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>＋</span>
@@ -181,6 +150,57 @@ export function Header({ onAddClick }: HeaderProps) {
                   </span>
                   としてログイン中
                 </div>
+                {/* Notification Toggle Row */}
+                {push.supported && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 14px',
+                      borderBottom: '1px dashed var(--pencil-line)',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.9rem', color: push.permission === 'denied' ? 'var(--ink-light)' : 'var(--ink)', fontFamily: 'var(--font-body)' }}>
+                      更新通知
+                    </span>
+                    {push.permission === 'denied' ? (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--ink-light)' }}>ブロック中</span>
+                    ) : (
+                      <button
+                        onClick={() => push.subscribed ? push.unsubscribe() : push.subscribe()}
+                        disabled={push.loading}
+                        aria-label={push.subscribed ? '通知をオフ' : '通知をオン'}
+                        style={{
+                          position: 'relative',
+                          width: '36px',
+                          height: '20px',
+                          borderRadius: '20px',
+                          border: '1.5px solid var(--ink)',
+                          background: push.subscribed ? 'var(--ink)' : 'var(--paper-base)',
+                          cursor: push.loading ? 'wait' : 'pointer',
+                          padding: 0,
+                          flexShrink: 0,
+                          transition: 'background 0.15s',
+                        }}
+                      >
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: '2px',
+                            left: push.subscribed ? '16px' : '2px',
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            background: push.subscribed ? 'var(--paper-base)' : 'var(--ink)',
+                            transition: 'left 0.15s',
+                          }}
+                        />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <button
                   className="p-btn p-btn--ghost"
                   onClick={() => {
