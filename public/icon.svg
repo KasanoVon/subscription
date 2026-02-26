@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#FDFDF5"/>
+  <!-- Notebook body -->
+  <rect x="120" y="100" width="272" height="320" rx="12" fill="#F0EEE3" stroke="#2C2B26" stroke-width="8"/>
+  <!-- Spine -->
+  <rect x="120" y="100" width="44" height="320" rx="8" fill="#E8E5D8" stroke="#2C2B26" stroke-width="8"/>
+  <!-- Binding rings -->
+  <circle cx="142" cy="180" r="14" fill="#FDFDF5" stroke="#2C2B26" stroke-width="6"/>
+  <circle cx="142" cy="256" r="14" fill="#FDFDF5" stroke="#2C2B26" stroke-width="6"/>
+  <circle cx="142" cy="332" r="14" fill="#FDFDF5" stroke="#2C2B26" stroke-width="6"/>
+  <!-- Lines on page -->
+  <line x1="188" y1="190" x2="360" y2="190" stroke="#9B9A92" stroke-width="5" stroke-linecap="round"/>
+  <line x1="188" y1="230" x2="360" y2="230" stroke="#9B9A92" stroke-width="5" stroke-linecap="round"/>
+  <line x1="188" y1="270" x2="340" y2="270" stroke="#9B9A92" stroke-width="5" stroke-linecap="round"/>
+  <line x1="188" y1="310" x2="320" y2="310" stroke="#9B9A92" stroke-width="5" stroke-linecap="round"/>
+  <!-- Pencil -->
+  <g transform="rotate(-35, 340, 360)">
+    <rect x="310" y="290" width="28" height="110" rx="4" fill="#F5C842" stroke="#2C2B26" stroke-width="5"/>
+    <polygon points="310,400 338,400 324,430" fill="#F0D0A0" stroke="#2C2B26" stroke-width="5" stroke-linejoin="round"/>
+    <polygon points="318,425 330,425 324,442" fill="#2C2B26"/>
+    <rect x="310" y="290" width="28" height="20" rx="4" fill="#E8A0A0" stroke="#2C2B26" stroke-width="5"/>
+  </g>
+</svg>
