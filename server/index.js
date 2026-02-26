@@ -107,6 +107,20 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+const STARTUP_FILE = '/data/startup-history.json';
+
+function recordStartup() {
+  const now = new Date().toISOString();
+  let history = [];
+  try {
+    history = JSON.parse(fs.readFileSync(STARTUP_FILE, 'utf8'));
+  } catch { /* first run or volume reset */ }
+  history.push(now);
+  try { fs.writeFileSync(STARTUP_FILE, JSON.stringify(history)); } catch { /* ignore */ }
+}
+
+recordStartup();
+
 app.get('/api/debug/db', async (_req, res) => {
   try {
     const dbExists = fs.existsSync(dbPath);
@@ -114,6 +128,8 @@ app.get('/api/debug/db', async (_req, res) => {
     let dataDir = null;
     try { dataDir = fs.readdirSync('/data'); } catch { dataDir = 'not accessible'; }
     const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+    let startupHistory = [];
+    try { startupHistory = JSON.parse(fs.readFileSync(STARTUP_FILE, 'utf8')); } catch { /* ignore */ }
     res.json({
       DB_PATH_env: process.env.DB_PATH ?? '(not set)',
       dbPath,
@@ -121,6 +137,7 @@ app.get('/api/debug/db', async (_req, res) => {
       dbSize,
       dataDir,
       userCount: userCount?.count ?? 0,
+      startupHistory,
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });
