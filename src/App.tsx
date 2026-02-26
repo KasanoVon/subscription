@@ -78,6 +78,29 @@ function AppDashboard({ userId, authToken }: { userId: string; authToken: string
           <SubscriptionList onEdit={openEdit} />
         </main>
 
+        <footer
+          style={{
+            borderTop: '1.5px solid var(--paper-darker)',
+            marginTop: '24px',
+            padding: '20px',
+            textAlign: 'center',
+            fontSize: '0.82rem',
+            color: 'var(--ink-light)',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          お問い合わせ：
+          <a
+            href="https://x.com/KasanoVon"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: 'var(--ink)', textDecoration: 'underline' }}
+          >
+            @KasanoVon
+          </a>
+          {' '}on X
+        </footer>
+
         {modalOpen && <SubscriptionModal editing={editing} onClose={closeModal} />}
       </div>
     </AppProvider>
