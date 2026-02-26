@@ -1,6 +1,6 @@
 ﻿import React, { createContext, useContext, useReducer, useEffect, useState, useRef } from 'react';
 import type { Subscription, AppState, Currency } from '../types';
-import { DEFAULT_SUBSCRIPTIONS, CATEGORY_COLORS } from '../types';
+import { CATEGORY_COLORS } from '../types';
 import { DEFAULT_EXCHANGE_RATE as RATE } from '../utils/currency';
 
 type Action =
@@ -115,10 +115,10 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
             try {
               return normalizeState(JSON.parse(saved) as AppState);
             } catch {
-              return { ...emptyState, subscriptions: DEFAULT_SUBSCRIPTIONS };
+              return { ...emptyState, subscriptions: [] };
             }
           })()
-        : { ...emptyState, subscriptions: DEFAULT_SUBSCRIPTIONS };
+        : { ...emptyState, subscriptions: [] };
 
       try {
         const res = await fetch(`${API_BASE}/api/state`, {

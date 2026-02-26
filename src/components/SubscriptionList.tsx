@@ -86,20 +86,75 @@ export function SubscriptionList({ onEdit }: SubscriptionListProps) {
 
       {/* Cards Grid */}
       {filtered.length === 0 ? (
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '60px 20px',
-            color: 'var(--ink-faint)',
-            fontFamily: 'var(--font-sketch)',
-            fontSize: '1.1rem',
-          }}
-        >
-          <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📝</div>
-          {search || filterStatus !== 'all'
-            ? '条件に一致するサブスクリプションがありません'
-            : 'サブスクリプションを追加してください'}
-        </div>
+        search || filterStatus !== 'all' ? (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '60px 20px',
+              color: 'var(--ink-faint)',
+              fontFamily: 'var(--font-sketch)',
+              fontSize: '1.1rem',
+            }}
+          >
+            <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🔍</div>
+            条件に一致するサブスクリプションがありません
+          </div>
+        ) : (
+          <div
+            style={{
+              border: '2px dashed var(--paper-darker)',
+              borderRadius: 'var(--radius)',
+              padding: '40px 24px',
+              textAlign: 'center',
+              background: 'var(--paper-warm)',
+            }}
+          >
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📋</div>
+            <p style={{ fontFamily: 'var(--font-sketch)', fontSize: '1.2rem', color: 'var(--ink)', marginBottom: '8px' }}>
+              まだサブスクリプションがありません
+            </p>
+            <p style={{ fontSize: '0.9rem', color: 'var(--ink-light)', marginBottom: '28px' }}>
+              右上の「＋ 追加」から登録を始めましょう
+            </p>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                maxWidth: '320px',
+                margin: '0 auto',
+                textAlign: 'left',
+              }}
+            >
+              {[
+                { step: '1', text: '右上の「＋ 追加」をクリック' },
+                { step: '2', text: 'サービス名を入力（候補が自動で出ます）' },
+                { step: '3', text: '金額・請求日を確認して「追加する」' },
+              ].map(({ step, text }) => (
+                <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: 'var(--ink)',
+                      color: 'var(--paper)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontFamily: 'var(--font-sketch)',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    {step}
+                  </span>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--ink)' }}>{text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
       ) : (
         <div
           style={{
