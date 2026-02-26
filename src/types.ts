@@ -6,7 +6,7 @@ export interface User {
 }
 
 export type Currency = 'JPY' | 'USD';
-export type BillingCycle = 'monthly' | 'yearly' | 'weekly';
+export type BillingCycle = 'monthly' | 'yearly' | 'weekly' | 'custom';
 export type SubscriptionStatus = 'active' | 'paused' | 'cancelled';
 
 export interface Subscription {
@@ -15,9 +15,11 @@ export interface Subscription {
   amount: number;
   currency: Currency;
   billingCycle: BillingCycle;
+  customCycleDays?: number;
   category: string;
   nextBillingDate: string;
   status: SubscriptionStatus;
+  paymentMethod?: string;
   notes?: string;
   url?: string;
   color: string;

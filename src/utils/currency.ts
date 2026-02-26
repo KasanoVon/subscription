@@ -1,7 +1,6 @@
 import type { Currency, BillingCycle } from '../types';
 
 // 為替レート: 1 USD = JPY
-// 本番環境では外部APIから取得することを推奨
 export const DEFAULT_EXCHANGE_RATE = 150;
 
 export function convertCurrency(
@@ -33,10 +32,10 @@ export function formatCurrency(amount: number, currency: Currency): string {
   }).format(amount);
 }
 
-// 年間コストに換算 (表示通貨)
 export function toMonthlyAmount(
   amount: number,
-  billingCycle: BillingCycle
+  billingCycle: BillingCycle,
+  customCycleDays?: number
 ): number {
   switch (billingCycle) {
     case 'weekly':
@@ -45,12 +44,15 @@ export function toMonthlyAmount(
       return amount;
     case 'yearly':
       return amount / 12;
+    case 'custom':
+      return customCycleDays && customCycleDays > 0 ? amount * 30 / customCycleDays : amount;
   }
 }
 
 export function toYearlyAmount(
   amount: number,
-  billingCycle: BillingCycle
+  billingCycle: BillingCycle,
+  customCycleDays?: number
 ): number {
   switch (billingCycle) {
     case 'weekly':
@@ -59,10 +61,12 @@ export function toYearlyAmount(
       return amount * 12;
     case 'yearly':
       return amount;
+    case 'custom':
+      return customCycleDays && customCycleDays > 0 ? amount * 365 / customCycleDays : amount * 12;
   }
 }
 
-export function billingCycleLabel(cycle: BillingCycle): string {
+export function billingCycleLabel(cycle: BillingCycle, customCycleDays?: number): string {
   switch (cycle) {
     case 'weekly':
       return '週払い';
@@ -70,5 +74,7 @@ export function billingCycleLabel(cycle: BillingCycle): string {
       return '月払い';
     case 'yearly':
       return '年払い';
+    case 'custom':
+      return customCycleDays ? `${customCycleDays}日ごと` : 'カスタム';
   }
 }

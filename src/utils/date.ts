@@ -1,4 +1,4 @@
-import { format, differenceInDays, parseISO, isAfter, isBefore, addMonths, addYears, addWeeks } from 'date-fns';
+import { format, differenceInDays, parseISO, isAfter, isBefore, addMonths, addYears, addWeeks, addDays } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { BillingCycle } from '../types';
 
@@ -31,7 +31,8 @@ export function isUpcomingSoon(dateStr: string, days: number = 7): boolean {
 
 export function nextBillingDate(
   currentDate: string,
-  cycle: BillingCycle
+  cycle: BillingCycle,
+  customCycleDays?: number
 ): string {
   const date = parseISO(currentDate);
   switch (cycle) {
@@ -41,6 +42,8 @@ export function nextBillingDate(
       return format(addMonths(date, 1), 'yyyy-MM-dd');
     case 'yearly':
       return format(addYears(date, 1), 'yyyy-MM-dd');
+    case 'custom':
+      return format(addDays(date, customCycleDays ?? 30), 'yyyy-MM-dd');
   }
 }
 

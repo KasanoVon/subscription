@@ -14,7 +14,7 @@ export function SubscriptionCard({ subscription: s, onEdit, onDelete }: Subscrip
   const { displayCurrency, exchangeRate } = state;
 
   const amountDisplay = convertCurrency(s.amount, s.currency, displayCurrency, exchangeRate);
-  const monthlyDisplay = toMonthlyAmount(amountDisplay, s.billingCycle);
+  const monthlyDisplay = toMonthlyAmount(amountDisplay, s.billingCycle, s.customCycleDays);
 
   const days = daysUntil(s.nextBillingDate);
   const urgent = days >= 0 && days <= 3;
@@ -85,7 +85,7 @@ export function SubscriptionCard({ subscription: s, onEdit, onDelete }: Subscrip
             {formatCurrency(amountDisplay, displayCurrency)}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--ink-light)' }}>
-            {billingCycleLabel(s.billingCycle)}
+            {billingCycleLabel(s.billingCycle, s.customCycleDays)}
             {s.billingCycle !== 'monthly' && (
               <span style={{ marginLeft: '4px', color: 'var(--ink-faint)' }}>
                 ({formatCurrency(monthlyDisplay, displayCurrency)}/月)
@@ -101,6 +101,11 @@ export function SubscriptionCard({ subscription: s, onEdit, onDelete }: Subscrip
           {overdue && <span className="p-badge p-badge--danger">期限超過</span>}
           {!overdue && urgent && <span className="p-badge p-badge--danger">あと {days}日</span>}
           {!overdue && !urgent && upcoming && <span className="p-badge p-badge--warning">あと {days}日</span>}
+          {s.paymentMethod && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--ink-light)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              💳 {s.paymentMethod}
+            </span>
+          )}
         </div>
         <div style={{ fontSize: '0.8rem', color: 'var(--ink-light)' }}>次回: {formatDate(s.nextBillingDate)}</div>
       </div>

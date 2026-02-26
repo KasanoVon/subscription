@@ -11,7 +11,7 @@ export function Dashboard() {
   // 月額合計 (表示通貨)
   const totalMonthly = active.reduce((sum, s) => {
     const amountInDisplay = convertCurrency(s.amount, s.currency, displayCurrency, exchangeRate);
-    const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle);
+    const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle, s.customCycleDays);
     return sum + monthly;
   }, 0);
 
@@ -21,7 +21,7 @@ export function Dashboard() {
   // カテゴリ別集計
   const byCategory = active.reduce<Record<string, number>>((acc, s) => {
     const amountInDisplay = convertCurrency(s.amount, s.currency, displayCurrency, exchangeRate);
-    const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle);
+    const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle, s.customCycleDays);
     acc[s.category] = (acc[s.category] || 0) + monthly;
     return acc;
   }, {});

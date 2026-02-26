@@ -15,6 +15,15 @@ const COLOR_PRESETS = [
   '#8B52C4', '#C45B9E', '#8B8B8B', '#2C2B26',
 ];
 
+const PAYMENT_METHOD_SUGGESTIONS = [
+  'クレジットカード',
+  'デビットカード',
+  'PayPal',
+  'Apple Pay',
+  'Google Pay',
+  '銀行振込',
+];
+
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -24,9 +33,11 @@ const DEFAULT_FORM: Omit<Subscription, 'id' | 'createdAt'> = {
   amount: 0,
   currency: 'JPY',
   billingCycle: 'monthly',
+  customCycleDays: 30,
   category: 'その他',
   nextBillingDate: todayISOString(),
   status: 'active',
+  paymentMethod: '',
   notes: '',
   url: '',
   color: COLOR_PRESETS[0],
@@ -40,7 +51,7 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
   useEffect(() => {
     if (editing) {
       const { id: _id, createdAt: _c, ...rest } = editing;
-      setForm(rest);
+      setForm({ ...DEFAULT_FORM, ...rest });
     } else {
       setForm(DEFAULT_FORM);
     }
@@ -57,6 +68,9 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
     if (!form.name.trim()) errs.name = 'サービス名を入力してください';
     if (form.amount <= 0) errs.amount = '0より大きい金額を入力してください';
     if (!form.nextBillingDate) errs.nextBillingDate = '次回請求日を入力してください';
+    if (form.billingCycle === 'custom' && (!form.customCycleDays || form.customCycleDays <= 0)) {
+      errs.customCycleDays = '1以上の日数を入力してください';
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -151,6 +165,7 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
                 <option value="weekly">週払い</option>
                 <option value="monthly">月払い</option>
                 <option value="yearly">年払い</option>
+                <option value="custom">その他</option>
               </select>
             </div>
             <div className="p-form-group">
@@ -171,6 +186,28 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
               </select>
             </div>
           </div>
+
+          {/* Custom Cycle Days (shown only when 'custom' is selected) */}
+          {form.billingCycle === 'custom' && (
+            <div className="p-form-group">
+              <label className="p-label" htmlFor="customCycleDays">請求間隔（日数）</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  id="customCycleDays"
+                  className="p-input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.customCycleDays || ''}
+                  onChange={(e) => set('customCycleDays', parseInt(e.target.value) || 1)}
+                  placeholder="例: 90"
+                  style={{ maxWidth: '120px' }}
+                />
+                <span style={{ color: 'var(--ink-light)', fontSize: '0.9rem' }}>日ごとに請求</span>
+              </div>
+              {errors.customCycleDays && <ErrorMsg msg={errors.customCycleDays} />}
+            </div>
+          )}
 
           {/* Next Billing Date + Status */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -198,6 +235,25 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
                 <option value="cancelled">キャンセル済</option>
               </select>
             </div>
+          </div>
+
+          {/* Payment Method */}
+          <div className="p-form-group">
+            <label className="p-label" htmlFor="paymentMethod">支払い方法 (任意)</label>
+            <input
+              id="paymentMethod"
+              className="p-input"
+              type="text"
+              list="payment-method-list"
+              value={form.paymentMethod || ''}
+              onChange={(e) => set('paymentMethod', e.target.value)}
+              placeholder="例: クレジットカード、PayPal..."
+            />
+            <datalist id="payment-method-list">
+              {PAYMENT_METHOD_SUGGESTIONS.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
           </div>
 
           {/* Color Picker */}
