@@ -5,36 +5,44 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import { rateLimit } from 'express-rate-limit';
-import { open } from 'sqlite';
-import sqlite3 from 'sqlite3';
+import { createClient } from '@libsql/client';
 import bcrypt from 'bcryptjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_DAYS = 30;
-// 本番では環境変数で指定: ALLOWED_ORIGIN=https://yourdomain.com
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? 'https://subnote.up.railway.app';
-// Capacitor (Android/iOS) のオリジン
 const CAPACITOR_ORIGINS = ['capacitor://localhost', 'https://localhost', 'http://localhost', 'ionic://localhost'];
-// ローカル開発用
 const LOCAL_DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:4173'];
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// 本番では DB_PATH=/data/subnote.db のように環境変数で永続ボリュームを指定
-const dbPath = process.env.DB_PATH ?? path.join(__dirname, 'subnote.db');
 const distPath = path.join(__dirname, '..', 'dist');
 
-// DBファイルの親ディレクトリが存在しない場合は作成
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-
-const db = await open({
-  filename: dbPath,
-  driver: sqlite3.Database,
+// Turso (libSQL) クライアント
+// 本番: TURSO_DATABASE_URL と TURSO_AUTH_TOKEN を Railway 環境変数で設定
+// ローカル開発: ファイルベースのSQLiteを使用
+const tursoUrl = process.env.TURSO_DATABASE_URL ?? `file:${path.join(__dirname, 'subnote.db')}`;
+const client = createClient({
+  url: tursoUrl,
+  authToken: process.env.TURSO_AUTH_TOKEN,
 });
 
-await db.exec(`
-  PRAGMA foreign_keys = ON;
+// sqlite パッケージと同じ API でラップ
+const db = {
+  get: async (sql, ...args) => {
+    const result = await client.execute({ sql, args });
+    return result.rows[0] ?? null;
+  },
+  all: async (sql, ...args) => {
+    const result = await client.execute({ sql, args });
+    return result.rows;
+  },
+  run: async (sql, ...args) => {
+    await client.execute({ sql, args });
+  },
+};
 
+await client.executeMultiple(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -64,12 +72,10 @@ await db.exec(`
 const isProd = process.env.NODE_ENV === 'production';
 
 const app = express();
-// Railway等のリバースプロキシを信頼する（レートリミットの正確なIP識別に必要）
 app.set('trust proxy', 1);
 const allowedOrigins = [ALLOWED_ORIGIN, ...CAPACITOR_ORIGINS, ...LOCAL_DEV_ORIGINS];
 app.use(cors({
   origin: (origin, callback) => {
-    // originがない場合（同一オリジンやサーバー間通信）は許可
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -82,14 +88,13 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// 本番環境: ビルド済みフロントエンドを配信
 if (isProd) {
   app.use(express.static(distPath));
 }
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分
-  max: 10,                   // 同一IPから10回まで
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   message: { error: 'too_many_requests' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -107,37 +112,13 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-const STARTUP_FILE = '/data/startup-history.json';
-
-function recordStartup() {
-  const now = new Date().toISOString();
-  let history = [];
-  try {
-    history = JSON.parse(fs.readFileSync(STARTUP_FILE, 'utf8'));
-  } catch { /* first run or volume reset */ }
-  history.push(now);
-  try { fs.writeFileSync(STARTUP_FILE, JSON.stringify(history)); } catch { /* ignore */ }
-}
-
-recordStartup();
-
 app.get('/api/debug/db', async (_req, res) => {
   try {
-    const dbExists = fs.existsSync(dbPath);
-    const dbSize = dbExists ? fs.statSync(dbPath).size : 0;
-    let dataDir = null;
-    try { dataDir = fs.readdirSync('/data'); } catch { dataDir = 'not accessible'; }
     const userCount = await db.get('SELECT COUNT(*) as count FROM users');
-    let startupHistory = [];
-    try { startupHistory = JSON.parse(fs.readFileSync(STARTUP_FILE, 'utf8')); } catch { /* ignore */ }
     res.json({
-      DB_PATH_env: process.env.DB_PATH ?? '(not set)',
-      dbPath,
-      dbExists,
-      dbSize,
-      dataDir,
+      db: tursoUrl.startsWith('file:') ? 'local-sqlite' : 'turso-cloud',
+      url: tursoUrl.startsWith('file:') ? tursoUrl : tursoUrl.replace(/\/\/.*@/, '//***@'),
       userCount: userCount?.count ?? 0,
-      startupHistory,
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -225,11 +206,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     const session = await createSession(id);
     return res.json({
-      user: {
-        id,
-        username,
-        createdAt,
-      },
+      user: { id, username, createdAt },
       token: session.token,
     });
   } catch (error) {
@@ -271,11 +248,9 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
 app.get('/api/auth/session', async (req, res) => {
   try {
     const row = await getAuthUser(req);
-
     if (!row) {
       return res.status(401).json({ error: 'unauthorized' });
     }
-
     return res.json({ user: sanitizeUser(row) });
   } catch (error) {
     console.error(error);
@@ -289,7 +264,6 @@ app.get('/api/state', async (req, res) => {
     if (!user) {
       return res.status(401).json({ error: 'unauthorized' });
     }
-
     const row = await db.get('SELECT state_json FROM user_states WHERE user_id = ?', user.id);
     if (!row) {
       return res.json({ state: null });
@@ -349,7 +323,6 @@ app.post('/api/auth/logout', async (req, res) => {
   }
 });
 
-// SPA フォールバック: /api 以外は index.html を返す（本番のみ）
 if (isProd) {
   app.get('*', (_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
@@ -357,18 +330,8 @@ if (isProd) {
 }
 
 app.listen(PORT, async () => {
-  console.log(`Auth API server running on http://localhost:${PORT}`);
-  console.log(`DB_PATH env: [${process.env.DB_PATH ?? '(not set)'}]`);
-  console.log(`dbPath resolved: [${dbPath}]`);
-  const dbExists = fs.existsSync(dbPath);
-  const dbSize = dbExists ? fs.statSync(dbPath).size : 0;
-  console.log(`DB file: ${dbExists ? `exists (${dbSize} bytes)` : 'NEW (first run or wiped)'}`);
-  try {
-    const dataDir = fs.readdirSync('/data');
-    console.log(`/data contents: ${JSON.stringify(dataDir)}`);
-  } catch {
-    console.log('/data directory: not accessible');
-  }
+  console.log(`SubNote API running on port ${PORT}`);
+  console.log(`DB: ${tursoUrl.startsWith('file:') ? 'local SQLite' : 'Turso cloud'}`);
   const userCount = await db.get('SELECT COUNT(*) as count FROM users');
   console.log(`Users in DB: ${userCount?.count ?? 0}`);
   console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
