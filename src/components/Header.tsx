@@ -63,14 +63,31 @@ export function Header({ onAddClick }: HeaderProps) {
         </div>
 
         {/* Notification Bell */}
-        {push.supported && push.permission !== 'denied' && (
+        {push.supported && (
           <button
             className="p-btn p-btn--ghost p-btn--icon"
-            onClick={() => push.subscribed ? push.unsubscribe() : push.subscribe()}
+            onClick={() => {
+              if (push.permission === 'denied') {
+                alert('通知がブロックされています。\nブラウザのアドレスバー左の🔒アイコン → サイトの設定 → 通知を「許可」に変更してください。');
+              } else if (push.subscribed) {
+                push.unsubscribe();
+              } else {
+                push.subscribe();
+              }
+            }}
             disabled={push.loading}
-            title={push.subscribed ? '通知をオフにする' : '更新通知をオンにする'}
-            aria-label={push.subscribed ? '通知をオフにする' : '更新通知をオンにする'}
-            style={{ fontSize: '1.2rem', opacity: push.loading ? 0.5 : 1 }}
+            title={
+              push.permission === 'denied'
+                ? '通知がブロックされています（ブラウザ設定で許可してください）'
+                : push.subscribed
+                ? '通知をオフにする'
+                : '更新3日前・前日に通知を受け取る'
+            }
+            aria-label="通知設定"
+            style={{
+              fontSize: '1.2rem',
+              opacity: push.loading ? 0.5 : push.permission === 'denied' ? 0.4 : 1,
+            }}
           >
             {push.subscribed ? '🔔' : '🔕'}
           </button>
