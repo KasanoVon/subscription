@@ -157,6 +157,7 @@ export function SubscriptionList({ onEdit }: SubscriptionListProps) {
         )
       ) : (
         <div
+          className="p-sub-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',

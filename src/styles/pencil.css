@@ -66,6 +66,7 @@ svg.pencil-filters {
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 body {
@@ -73,6 +74,7 @@ body {
   background-color: var(--paper-warm);
   color: var(--ink);
   min-height: 100vh;
+  overflow-x: hidden;
   /* Subtle paper texture via repeating gradient */
   background-image:
     repeating-linear-gradient(
@@ -418,5 +420,30 @@ body {
 
   .p-stat-card__value {
     font-size: 1.6rem;
+  }
+
+  /* Header: hide currency label text, keep symbol only */
+  .p-currency-label {
+    display: none;
+  }
+
+  /* Header: hide username text, keep avatar only */
+  .p-username-text {
+    display: none;
+  }
+
+  /* Header: compact currency toggle */
+  .p-currency-toggle__btn {
+    padding: 6px 10px;
+  }
+
+  /* Heading size reduction */
+  .p-heading--lg {
+    font-size: 1.4rem;
+  }
+
+  /* Subscription grid: force single column on narrow screens */
+  .p-sub-grid {
+    grid-template-columns: 1fr !important;
   }
 }

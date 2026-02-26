@@ -52,13 +52,13 @@ export function Header({ onAddClick }: HeaderProps) {
             className={`p-currency-toggle__btn${state.displayCurrency === 'JPY' ? ' p-currency-toggle__btn--active' : ''}`}
             onClick={() => setCurrency('JPY')}
           >
-            ¥ JPY
+            ¥<span className="p-currency-label"> JPY</span>
           </button>
           <button
             className={`p-currency-toggle__btn${state.displayCurrency === 'USD' ? ' p-currency-toggle__btn--active' : ''}`}
             onClick={() => setCurrency('USD')}
           >
-            $ USD
+            $<span className="p-currency-label"> USD</span>
           </button>
         </div>
 
@@ -101,6 +101,7 @@ export function Header({ onAddClick }: HeaderProps) {
               {username.charAt(0).toUpperCase()}
             </span>
             <span
+              className="p-username-text"
               style={{
                 fontFamily: 'var(--font-sketch)',
                 fontSize: '0.95rem',
