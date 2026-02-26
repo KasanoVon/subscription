@@ -319,11 +319,20 @@ if (isProd) {
   });
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Auth API server running on http://localhost:${PORT}`);
-  console.log(`SQLite DB: ${dbPath}`);
+  console.log(`DB_PATH env: [${process.env.DB_PATH ?? '(not set)'}]`);
+  console.log(`dbPath resolved: [${dbPath}]`);
   const dbExists = fs.existsSync(dbPath);
   const dbSize = dbExists ? fs.statSync(dbPath).size : 0;
   console.log(`DB file: ${dbExists ? `exists (${dbSize} bytes)` : 'NEW (first run or wiped)'}`);
+  try {
+    const dataDir = fs.readdirSync('/data');
+    console.log(`/data contents: ${JSON.stringify(dataDir)}`);
+  } catch {
+    console.log('/data directory: not accessible');
+  }
+  const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+  console.log(`Users in DB: ${userCount?.count ?? 0}`);
   console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
 });
