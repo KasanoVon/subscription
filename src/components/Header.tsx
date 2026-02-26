@@ -167,36 +167,48 @@ export function Header({ onAddClick }: HeaderProps) {
                     {push.permission === 'denied' ? (
                       <span style={{ fontSize: '0.75rem', color: 'var(--ink-light)' }}>ブロック中</span>
                     ) : (
-                      <button
-                        onClick={() => push.subscribed ? push.unsubscribe() : push.subscribe()}
-                        disabled={push.loading}
-                        aria-label={push.subscribed ? '通知をオフ' : '通知をオン'}
-                        style={{
-                          position: 'relative',
-                          width: '36px',
-                          height: '20px',
-                          borderRadius: '20px',
-                          border: '1.5px solid var(--ink)',
-                          background: push.subscribed ? 'var(--ink)' : 'var(--paper-base)',
-                          cursor: push.loading ? 'wait' : 'pointer',
-                          padding: 0,
-                          flexShrink: 0,
-                          transition: 'background 0.15s',
-                        }}
-                      >
-                        <span
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{
+                          fontSize: '0.72rem',
+                          fontFamily: 'var(--font-sketch)',
+                          color: push.subscribed ? 'var(--ink)' : 'var(--ink-light)',
+                          fontWeight: push.subscribed ? 700 : 400,
+                          minWidth: '18px',
+                          textAlign: 'right',
+                        }}>
+                          {push.subscribed ? 'オン' : 'オフ'}
+                        </span>
+                        <button
+                          onClick={() => push.subscribed ? push.unsubscribe() : push.subscribe()}
+                          disabled={push.loading}
+                          aria-label={push.subscribed ? '通知をオフ' : '通知をオン'}
                           style={{
-                            position: 'absolute',
-                            top: '2px',
-                            left: push.subscribed ? '16px' : '2px',
-                            width: '12px',
-                            height: '12px',
-                            borderRadius: '50%',
-                            background: push.subscribed ? 'var(--paper-base)' : 'var(--ink)',
-                            transition: 'left 0.15s',
+                            position: 'relative',
+                            width: '36px',
+                            height: '20px',
+                            borderRadius: '20px',
+                            border: '1.5px solid var(--ink)',
+                            background: push.subscribed ? 'var(--ink)' : 'var(--paper-base)',
+                            cursor: push.loading ? 'wait' : 'pointer',
+                            padding: 0,
+                            flexShrink: 0,
+                            transition: 'background 0.15s',
                           }}
-                        />
-                      </button>
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: '2px',
+                              left: push.subscribed ? '16px' : '2px',
+                              width: '12px',
+                              height: '12px',
+                              borderRadius: '50%',
+                              background: push.subscribed ? 'var(--paper-base)' : 'var(--ink)',
+                              transition: 'left 0.15s',
+                            }}
+                          />
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
