@@ -322,5 +322,8 @@ if (isProd) {
 app.listen(PORT, () => {
   console.log(`Auth API server running on http://localhost:${PORT}`);
   console.log(`SQLite DB: ${dbPath}`);
+  const dbExists = fs.existsSync(dbPath);
+  const dbSize = dbExists ? fs.statSync(dbPath).size : 0;
+  console.log(`DB file: ${dbExists ? `exists (${dbSize} bytes)` : 'NEW (first run or wiped)'}`);
   console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
 });
