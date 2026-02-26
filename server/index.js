@@ -107,6 +107,26 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/debug/db', async (_req, res) => {
+  try {
+    const dbExists = fs.existsSync(dbPath);
+    const dbSize = dbExists ? fs.statSync(dbPath).size : 0;
+    let dataDir = null;
+    try { dataDir = fs.readdirSync('/data'); } catch { dataDir = 'not accessible'; }
+    const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+    res.json({
+      DB_PATH_env: process.env.DB_PATH ?? '(not set)',
+      dbPath,
+      dbExists,
+      dbSize,
+      dataDir,
+      userCount: userCount?.count ?? 0,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 function createSessionToken() {
   return crypto.randomBytes(32).toString('hex');
 }
