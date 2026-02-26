@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+﻿import React, { createContext, useContext, useReducer, useEffect, useState, useRef } from 'react';
 import type { Subscription, AppState, Currency } from '../types';
-import { DEFAULT_SUBSCRIPTIONS } from '../types';
+import { DEFAULT_SUBSCRIPTIONS, CATEGORY_COLORS } from '../types';
 import { DEFAULT_EXCHANGE_RATE as RATE } from '../utils/currency';
 
 type Action =
@@ -16,6 +16,36 @@ const emptyState: AppState = {
   displayCurrency: 'JPY',
   exchangeRate: RATE,
 };
+
+const CATEGORY_MIGRATION_MAP: Record<string, string> = {
+  Entertainment: 'エンタメ',
+  Music: '音楽',
+  Productivity: '仕事・生産性',
+  'Cloud Storage': 'クラウド・ストレージ',
+  'Developer Tools': '開発ツール',
+  Gaming: 'ゲーム',
+  'News and Learning': 'ニュース・学習',
+  Utilities: 'ユーティリティ',
+  Other: 'その他',
+};
+
+function normalizeCategory(category: string): string {
+  return CATEGORY_MIGRATION_MAP[category] ?? category;
+}
+
+function normalizeState(parsed: AppState): AppState {
+  return {
+    ...parsed,
+    subscriptions: parsed.subscriptions.map((s) => {
+      const category = normalizeCategory(s.category);
+      return {
+        ...s,
+        category,
+        color: CATEGORY_COLORS[category] ?? s.color,
+      };
+    }),
+  };
+}
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -51,48 +81,111 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-// ユーザーごとのストレージキー
 function storageKey(userId: string) {
   return `subnote_state_${userId}`;
 }
 
 interface AppProviderProps {
   userId: string;
+  authToken: string;
   children: React.ReactNode;
 }
 
-export function AppProvider({ userId, children }: AppProviderProps) {
-  const [state, dispatch] = useReducer(reducer, emptyState);
+function authHeaders(token: string) {
+  return {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+}
 
-  // ユーザー切替 or 初回: ローカルストレージから復元
+export function AppProvider({ userId, authToken, children }: AppProviderProps) {
+  const [state, dispatch] = useReducer(reducer, emptyState);
+  const [loaded, setLoaded] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey(userId));
-    if (saved) {
+    let active = true;
+
+    async function loadState() {
+      const saved = localStorage.getItem(storageKey(userId));
+      const fallbackState: AppState = saved
+        ? (() => {
+            try {
+              return normalizeState(JSON.parse(saved) as AppState);
+            } catch {
+              return { ...emptyState, subscriptions: DEFAULT_SUBSCRIPTIONS };
+            }
+          })()
+        : { ...emptyState, subscriptions: DEFAULT_SUBSCRIPTIONS };
+
       try {
-        const parsed = JSON.parse(saved) as AppState;
-        dispatch({ type: 'LOAD_STATE', payload: parsed });
-        return;
+        const res = await fetch('/api/state', {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+
+        if (!res.ok) {
+          if (active) {
+            dispatch({ type: 'LOAD_STATE', payload: fallbackState });
+            setLoaded(true);
+          }
+          return;
+        }
+
+        const data = (await res.json()) as { state: AppState | null };
+        const nextState = data.state ? normalizeState(data.state) : fallbackState;
+        if (active) {
+          dispatch({ type: 'LOAD_STATE', payload: nextState });
+          setLoaded(true);
+        }
       } catch {
-        // 壊れていたら初期データを使用
+        if (active) {
+          dispatch({ type: 'LOAD_STATE', payload: fallbackState });
+          setLoaded(true);
+        }
       }
     }
-    // 初回ログインはサンプルデータで開始
-    dispatch({
-      type: 'LOAD_STATE',
-      payload: { ...emptyState, subscriptions: DEFAULT_SUBSCRIPTIONS },
-    });
-  }, [userId]);
 
-  // 状態変化をローカルストレージへ保存
+    setLoaded(false);
+    void loadState();
+    return () => {
+      active = false;
+    };
+  }, [userId, authToken]);
+
   useEffect(() => {
-    localStorage.setItem(storageKey(userId), JSON.stringify(state));
-  }, [state, userId]);
+    if (!loaded) return;
 
-  return (
-    <AppContext.Provider value={{ state, dispatch }}>
-      {children}
-    </AppContext.Provider>
-  );
+    localStorage.setItem(storageKey(userId), JSON.stringify(state));
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void fetch('/api/state', {
+        method: 'PUT',
+        headers: authHeaders(authToken),
+        body: JSON.stringify({ state }),
+      });
+    }, 500);
+  }, [state, userId, authToken, loaded]);
+
+  // 為替レートを起動時に自動取得（open.er-api.com: 無料・認証不要）
+  useEffect(() => {
+    async function fetchRate() {
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        if (!res.ok) return;
+        const data = await res.json() as { rates?: Record<string, number> };
+        const rate = data?.rates?.JPY;
+        if (typeof rate === 'number' && rate > 0) {
+          dispatch({ type: 'SET_EXCHANGE_RATE', payload: rate });
+        }
+      } catch {
+        // 取得失敗時はデフォルト値を維持
+      }
+    }
+    void fetchRate();
+  }, []);
+
+  return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;
 }
 
 export function useApp() {

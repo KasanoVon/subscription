@@ -1,4 +1,4 @@
-import type { Subscription } from '../types';
+﻿import type { Subscription } from '../types';
 import { useApp } from '../context/AppContext';
 import { convertCurrency, formatCurrency, billingCycleLabel, toMonthlyAmount } from '../utils/currency';
 import { formatDate, daysUntil } from '../utils/date';
@@ -26,15 +26,22 @@ export function SubscriptionCard({ subscription: s, onEdit, onDelete }: Subscrip
     dispatch({ type: 'UPDATE_SUBSCRIPTION', payload: { ...s, status: next } });
   }
 
+  function handleDelete() {
+    if (window.confirm(`「${s.name}」を削除しますか？`)) {
+      onDelete(s.id);
+    }
+  }
+
   return (
     <div
       className="p-card"
       style={{
         borderLeft: `4px solid ${s.color}`,
         opacity: s.status === 'cancelled' ? 0.5 : 1,
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      {/* Top row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
           <div
@@ -69,13 +76,10 @@ export function SubscriptionCard({ subscription: s, onEdit, onDelete }: Subscrip
             >
               {s.name}
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--ink-light)' }}>
-              {s.category}
-            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--ink-light)' }}>{s.category}</div>
           </div>
         </div>
 
-        {/* Amount */}
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontFamily: 'var(--font-sketch)', fontWeight: 700, fontSize: '1.15rem' }}>
             {formatCurrency(amountDisplay, displayCurrency)}
@@ -91,48 +95,77 @@ export function SubscriptionCard({ subscription: s, onEdit, onDelete }: Subscrip
         </div>
       </div>
 
-      {/* Status row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
           <StatusBadge status={s.status} />
           {overdue && <span className="p-badge p-badge--danger">期限超過</span>}
           {!overdue && urgent && <span className="p-badge p-badge--danger">あと {days}日</span>}
           {!overdue && !urgent && upcoming && <span className="p-badge p-badge--warning">あと {days}日</span>}
         </div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--ink-light)' }}>
-          次回: {formatDate(s.nextBillingDate)}
-        </div>
+        <div style={{ fontSize: '0.8rem', color: 'var(--ink-light)' }}>次回: {formatDate(s.nextBillingDate)}</div>
       </div>
 
-      <hr className="p-divider" style={{ margin: '0 0 10px' }} />
+      <hr className="p-divider" style={{ margin: 'auto 0 10px' }} />
 
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: '6px',
+          justifyContent: 'flex-end',
+          position: 'relative',
+          zIndex: 5,
+          pointerEvents: 'auto',
+        }}
+      >
         <button
+          type="button"
           className="p-btn p-btn--ghost p-btn--sm"
           onClick={toggleStatus}
           title={s.status === 'active' ? '一時停止' : '再開'}
+          style={{
+            pointerEvents: 'auto',
+            position: 'relative',
+            zIndex: 20,
+            touchAction: 'manipulation',
+            cursor: 'pointer',
+          }}
         >
           {s.status === 'active' ? '⏸' : '▶'}
         </button>
         <button
+          type="button"
           className="p-btn p-btn--ghost p-btn--sm"
           onClick={() => onEdit(s)}
           title="編集"
+          style={{
+            pointerEvents: 'auto',
+            position: 'relative',
+            zIndex: 20,
+            touchAction: 'manipulation',
+            cursor: 'pointer',
+          }}
         >
           ✏️
         </button>
         <button
+          type="button"
           className="p-btn p-btn--ghost p-btn--sm"
-          onClick={() => {
-            if (confirm(`「${s.name}」を削除しますか？`)) {
-              onDelete(s.id);
-            }
+          onPointerDown={(e) => {
+            e.preventDefault();
+            handleDelete();
           }}
+          onClick={handleDelete}
           title="削除"
-          style={{ color: 'var(--red)' }}
+          style={{
+            color: 'var(--red)',
+            pointerEvents: 'auto',
+            position: 'relative',
+            zIndex: 20,
+            touchAction: 'manipulation',
+            cursor: 'pointer',
+          }}
         >
-          🗑
+          🗑️
         </button>
       </div>
     </div>
@@ -146,6 +179,8 @@ function StatusBadge({ status }: { status: Subscription['status'] }) {
     case 'paused':
       return <span className="p-badge p-badge--paused">⏸ 停止中</span>;
     case 'cancelled':
-      return <span className="p-badge p-badge--cancelled">✕ キャンセル済</span>;
+      return <span className="p-badge p-badge--cancelled">✖ キャンセル</span>;
+    default:
+      return null;
   }
 }

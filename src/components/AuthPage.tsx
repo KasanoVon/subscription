@@ -248,7 +248,7 @@ export function AuthPage() {
       </div>
 
       <p style={{ marginTop: '24px', fontSize: '0.75rem', color: 'var(--ink-faint)', textAlign: 'center' }}>
-        データはこのブラウザのローカルストレージに保存されます
+        データはサーバーに安全に保存されます
       </p>
     </div>
   );

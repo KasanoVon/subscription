@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { SubscriptionList } from './components/SubscriptionList';
@@ -9,34 +10,27 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import type { Subscription } from './types';
 import './styles/pencil.css';
 
-function AppContent() {
+function LoadingScreen() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        fontFamily: 'var(--font-sketch)',
+        fontSize: '1.2rem',
+        color: 'var(--ink-light)',
+      }}
+    >
+      Loading...
+    </div>
+  );
+}
+
+function AppDashboard({ userId, authToken }: { userId: string; authToken: string }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Subscription | null>(null);
-  const { authState } = useAuth();
-
-  // セッション復元中（usersが空でsessionキーがある場合）はローディング表示
-  const hasSession = Boolean(localStorage.getItem('subnote_session'));
-  if (authState.users.length === 0 && authState.currentUser === null && hasSession) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          fontFamily: 'var(--font-sketch)',
-          fontSize: '1.2rem',
-          color: 'var(--ink-light)',
-        }}
-      >
-        ✏️ 読み込み中...
-      </div>
-    );
-  }
-
-  if (!authState.currentUser) {
-    return <AuthPage />;
-  }
 
   function openAdd() {
     setEditing(null);
@@ -54,7 +48,7 @@ function AppContent() {
   }
 
   return (
-    <AppProvider userId={authState.currentUser.id}>
+    <AppProvider userId={userId} authToken={authToken}>
       <div style={{ minHeight: '100vh' }}>
         {/* SVG filter for pencil sketch effect */}
         <svg style={{ position: 'absolute', width: 0, height: 0 }}>
@@ -90,10 +84,43 @@ function AppContent() {
   );
 }
 
+function AppRoutes() {
+  const { authState } = useAuth();
+
+  if (!authState.initialized) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={authState.currentUser && authState.token ? <Navigate to="/app" replace /> : <AuthPage />}
+      />
+      <Route
+        path="/app"
+        element={
+          authState.currentUser && authState.token ? (
+            <AppDashboard userId={authState.currentUser.id} authToken={authState.token} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="*"
+        element={<Navigate to={authState.currentUser && authState.token ? '/app' : '/login'} replace />}
+      />
+    </Routes>
+  );
+}
+
 export function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
     </AuthProvider>
   );
 }

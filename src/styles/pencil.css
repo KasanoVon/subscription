@@ -42,7 +42,7 @@ svg.pencil-filters {
   --gray-bg: #F2F1EA;
 
   /* Typography */
-  --font-sketch: 'Caveat', cursive;
+  --font-sketch: 'Klee One', 'Noto Sans JP', cursive;
   --font-body: 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif;
 
   /* Spacing */

@@ -1,43 +1,59 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { User } from '../types';
 
-// Web Crypto API による SHA-256 ハッシュ (ブラウザ標準)
-export async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 interface AuthState {
   currentUser: User | null;
-  users: User[];
+  token: string | null;
+  initialized: boolean;
 }
 
 type AuthAction =
-  | { type: 'LOGIN'; payload: User }
+  | { type: 'LOGIN'; payload: { user: User; token: string } }
   | { type: 'LOGOUT' }
-  | { type: 'REGISTER'; payload: User }
-  | { type: 'LOAD'; payload: AuthState };
+  | { type: 'LOAD'; payload: Pick<AuthState, 'currentUser' | 'token'> };
 
-const USERS_KEY = 'subnote_users';
-const SESSION_KEY = 'subnote_session';
+const TOKEN_KEY = 'subnote_auth_token';
+const USER_KEY = 'subnote_auth_user';
+
+function readCachedUser(): User | null {
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<User>;
+    if (!parsed.id || !parsed.username || !parsed.createdAt) return null;
+    return {
+      id: parsed.id,
+      username: parsed.username,
+      createdAt: parsed.createdAt,
+    };
+  } catch {
+    return null;
+  }
+}
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case 'LOGIN':
-      return { ...state, currentUser: action.payload };
-    case 'LOGOUT':
-      return { ...state, currentUser: null };
-    case 'REGISTER':
       return {
         ...state,
-        users: [...state.users, action.payload],
-        currentUser: action.payload,
+        currentUser: action.payload.user,
+        token: action.payload.token,
+        initialized: true,
+      };
+    case 'LOGOUT':
+      return {
+        ...state,
+        currentUser: null,
+        token: null,
+        initialized: true,
       };
     case 'LOAD':
-      return action.payload;
+      return {
+        ...state,
+        currentUser: action.payload.currentUser,
+        token: action.payload.token,
+        initialized: true,
+      };
     default:
       return state;
   }
@@ -52,66 +68,133 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+interface AuthSuccessResponse {
+  user: User;
+  token: string;
+}
+
+function buildAuthHeader(token: string) {
+  return { Authorization: `Bearer ${token}` };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authState, dispatch] = useReducer(authReducer, {
     currentUser: null,
-    users: [],
+    token: null,
+    initialized: false,
   });
 
-  // 起動時にユーザー一覧 + セッションを復元
   useEffect(() => {
-    const savedUsers = localStorage.getItem(USERS_KEY);
-    const savedSession = localStorage.getItem(SESSION_KEY);
-    const users: User[] = savedUsers ? (JSON.parse(savedUsers) as User[]) : [];
-    let currentUser: User | null = null;
-    if (savedSession) {
-      const sessionId = savedSession;
-      currentUser = users.find((u) => u.id === sessionId) ?? null;
+    let active = true;
+
+    async function restoreSession() {
+      const token = localStorage.getItem(TOKEN_KEY);
+      const cachedUser = readCachedUser();
+      if (!token) {
+        if (active) {
+          dispatch({ type: 'LOAD', payload: { currentUser: null, token: null } });
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/session', {
+          headers: buildAuthHeader(token),
+        });
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(USER_KEY);
+          if (active) {
+            dispatch({ type: 'LOAD', payload: { currentUser: null, token: null } });
+          }
+          return;
+        }
+        if (!res.ok) {
+          if (active) {
+            dispatch({ type: 'LOAD', payload: { currentUser: cachedUser, token } });
+          }
+          return;
+        }
+        const data = (await res.json()) as { user: User };
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        if (active) {
+          dispatch({ type: 'LOAD', payload: { currentUser: data.user, token } });
+        }
+      } catch {
+        if (active) {
+          dispatch({ type: 'LOAD', payload: { currentUser: cachedUser, token } });
+        }
+      }
     }
-    dispatch({ type: 'LOAD', payload: { users, currentUser } });
+
+    restoreSession();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  // ユーザー一覧を永続化
   useEffect(() => {
-    localStorage.setItem(USERS_KEY, JSON.stringify(authState.users));
-  }, [authState.users]);
-
-  // セッション（ログイン状態）を永続化
-  useEffect(() => {
-    if (authState.currentUser) {
-      localStorage.setItem(SESSION_KEY, authState.currentUser.id);
+    if (!authState.initialized) return;
+    if (authState.token) {
+      localStorage.setItem(TOKEN_KEY, authState.token);
     } else {
-      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(TOKEN_KEY);
     }
-  }, [authState.currentUser]);
+  }, [authState.token, authState.initialized]);
+
+  useEffect(() => {
+    if (!authState.initialized) return;
+    if (authState.currentUser) {
+      localStorage.setItem(USER_KEY, JSON.stringify(authState.currentUser));
+    } else {
+      localStorage.removeItem(USER_KEY);
+    }
+  }, [authState.currentUser, authState.initialized]);
 
   async function login(username: string, password: string): Promise<'ok' | 'invalid'> {
-    const hash = await hashPassword(password);
-    const user = authState.users.find(
-      (u) => u.username.toLowerCase() === username.toLowerCase() && u.passwordHash === hash
-    );
-    if (!user) return 'invalid';
-    dispatch({ type: 'LOGIN', payload: user });
-    return 'ok';
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      if (!res.ok) return 'invalid';
+      const data = (await res.json()) as AuthSuccessResponse;
+      dispatch({ type: 'LOGIN', payload: data });
+      return 'ok';
+    } catch {
+      return 'invalid';
+    }
   }
 
   async function register(username: string, password: string): Promise<'ok' | 'taken'> {
-    const exists = authState.users.some(
-      (u) => u.username.toLowerCase() === username.toLowerCase()
-    );
-    if (exists) return 'taken';
-    const hash = await hashPassword(password);
-    const newUser: User = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-      username,
-      passwordHash: hash,
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-    dispatch({ type: 'REGISTER', payload: newUser });
-    return 'ok';
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      if (res.status === 409) return 'taken';
+      if (!res.ok) return 'taken';
+      const data = (await res.json()) as AuthSuccessResponse;
+      dispatch({ type: 'LOGIN', payload: data });
+      return 'ok';
+    } catch {
+      return 'taken';
+    }
   }
 
   function logout() {
+    const token = authState.token;
+    if (token) {
+      void fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...buildAuthHeader(token),
+        },
+      });
+    }
     dispatch({ type: 'LOGOUT' });
   }
 

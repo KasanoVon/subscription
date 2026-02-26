@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   username: string;
-  passwordHash: string; // SHA-256 hex (注: 本番では bcrypt + バックエンドを使用すること)
+  passwordHash?: string;
   createdAt: string;
 }
 
@@ -16,7 +16,7 @@ export interface Subscription {
   currency: Currency;
   billingCycle: BillingCycle;
   category: string;
-  nextBillingDate: string; // ISO date string
+  nextBillingDate: string;
   status: SubscriptionStatus;
   notes?: string;
   url?: string;
@@ -27,7 +27,7 @@ export interface Subscription {
 export interface AppState {
   subscriptions: Subscription[];
   displayCurrency: Currency;
-  exchangeRate: number; // JPY per 1 USD
+  exchangeRate: number;
 }
 
 export const CATEGORIES = [
@@ -45,18 +45,17 @@ export const CATEGORIES = [
 export type Category = (typeof CATEGORIES)[number];
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  'エンタメ': '#D45B5B',
-  '音楽': '#A05BD4',
-  '仕事・生産性': '#5B8DD4',
-  'クラウド・ストレージ': '#5BA8D4',
-  '開発ツール': '#5BD4A8',
-  'ゲーム': '#D4875B',
-  'ニュース・学習': '#D4C85B',
-  'ユーティリティ': '#8BD45B',
-  'その他': '#8B8B8B',
+  エンタメ: '#D45B5B',
+  音楽: '#A05BD4',
+  仕事・生産性: '#5B8DD4',
+  クラウド・ストレージ: '#5BA8D4',
+  開発ツール: '#5BD4A8',
+  ゲーム: '#D4875B',
+  ニュース・学習: '#D4C85B',
+  ユーティリティ: '#8BD45B',
+  その他: '#8B8B8B',
 };
 
-// デフォルトのサンプルデータ
 export const DEFAULT_SUBSCRIPTIONS: Subscription[] = [
   {
     id: '1',
@@ -100,7 +99,7 @@ export const DEFAULT_SUBSCRIPTIONS: Subscription[] = [
   {
     id: '4',
     name: 'GitHub Copilot',
-    amount: 10.00,
+    amount: 10.0,
     currency: 'USD',
     billingCycle: 'monthly',
     category: '開発ツール',
