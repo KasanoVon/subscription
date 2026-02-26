@@ -22,11 +22,29 @@ export function usePushNotifications(authToken: string) {
 
   useEffect(() => {
     if (!supported) return;
+
+    // 購読状態を確認
     navigator.serviceWorker.ready.then((reg) => {
       reg.pushManager.getSubscription().then((sub) => {
         setSubscribed(sub !== null);
       });
     });
+
+    // ブラウザ側の通知許可変更をリアルタイムで反映
+    let permissionStatus: PermissionStatus | null = null;
+    navigator.permissions.query({ name: 'notifications' }).then((ps) => {
+      permissionStatus = ps;
+      ps.onchange = () => {
+        setPermission(ps.state as NotificationPermission);
+        if (ps.state !== 'granted') {
+          setSubscribed(false);
+        }
+      };
+    }).catch(() => {});
+
+    return () => {
+      if (permissionStatus) permissionStatus.onchange = null;
+    };
   }, [supported]);
 
   async function subscribe() {
