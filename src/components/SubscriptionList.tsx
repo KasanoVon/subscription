@@ -139,7 +139,7 @@ export function SubscriptionList({ onEdit }: SubscriptionListProps) {
                       height: '28px',
                       borderRadius: '50%',
                       background: 'var(--ink)',
-                      color: 'var(--paper)',
+                      color: 'var(--paper-base)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
