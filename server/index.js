@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -18,6 +19,9 @@ const __dirname = path.dirname(__filename);
 // 本番では DB_PATH=/data/subnote.db のように環境変数で永続ボリュームを指定
 const dbPath = process.env.DB_PATH ?? path.join(__dirname, 'subnote.db');
 const distPath = path.join(__dirname, '..', 'dist');
+
+// DBファイルの親ディレクトリが存在しない場合は作成
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 const db = await open({
   filename: dbPath,
