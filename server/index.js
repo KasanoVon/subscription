@@ -60,6 +60,8 @@ await db.exec(`
 const isProd = process.env.NODE_ENV === 'production';
 
 const app = express();
+// Railway等のリバースプロキシを信頼する（レートリミットの正確なIP識別に必要）
+app.set('trust proxy', 1);
 app.use(cors({
   origin: ALLOWED_ORIGIN,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
