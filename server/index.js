@@ -12,7 +12,7 @@ import bcrypt from 'bcryptjs';
 const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_DAYS = 30;
 // 本番では環境変数で指定: ALLOWED_ORIGIN=https://yourdomain.com
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? 'http://localhost:5173';
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? 'https://subnote.up.railway.app';
 // Capacitor (Android/iOS) のオリジン
 const CAPACITOR_ORIGINS = ['capacitor://localhost', 'http://localhost', 'ionic://localhost'];
 
