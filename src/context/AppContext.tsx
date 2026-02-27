@@ -101,7 +101,16 @@ function authHeaders(token: string) {
 }
 
 export function AppProvider({ userId, authToken, children }: AppProviderProps) {
-  const [state, dispatch] = useReducer(reducer, emptyState);
+  // LocalStorageのキャッシュで初期state を生成（即座に表示するため）
+  const [state, dispatch] = useReducer(reducer, userId, (uid) => {
+    const saved = localStorage.getItem(storageKey(uid));
+    if (!saved) return emptyState;
+    try {
+      return normalizeState(JSON.parse(saved) as AppState);
+    } catch {
+      return emptyState;
+    }
+  });
   const [loaded, setLoaded] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

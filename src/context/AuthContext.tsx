@@ -91,11 +91,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function restoreSession() {
       const token = localStorage.getItem(TOKEN_KEY);
       const cachedUser = readCachedUser();
+
       if (!token) {
         if (active) {
           dispatch({ type: 'LOAD', payload: { currentUser: null, token: null } });
         }
         return;
+      }
+
+      // キャッシュがあれば即座にアプリを表示（楽観的UI）
+      if (cachedUser && active) {
+        dispatch({ type: 'LOAD', payload: { currentUser: cachedUser, token } });
       }
 
       try {
@@ -111,8 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (!res.ok) {
-          if (active) {
-            dispatch({ type: 'LOAD', payload: { currentUser: cachedUser, token } });
+          if (!cachedUser && active) {
+            dispatch({ type: 'LOAD', payload: { currentUser: null, token: null } });
           }
           return;
         }
@@ -122,8 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           dispatch({ type: 'LOAD', payload: { currentUser: data.user, token } });
         }
       } catch {
-        if (active) {
-          dispatch({ type: 'LOAD', payload: { currentUser: cachedUser, token } });
+        if (!cachedUser && active) {
+          dispatch({ type: 'LOAD', payload: { currentUser: null, token: null } });
         }
       }
     }
