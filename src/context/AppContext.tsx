@@ -117,6 +117,18 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
   useEffect(() => {
     let active = true;
 
+    async function fetchLiveRate(): Promise<number | null> {
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        if (!res.ok) return null;
+        const data = await res.json() as { rates?: Record<string, number> };
+        const rate = data?.rates?.JPY;
+        return typeof rate === 'number' && rate > 0 ? rate : null;
+      } catch {
+        return null;
+      }
+    }
+
     async function loadState() {
       const saved = localStorage.getItem(storageKey(userId));
       const fallbackState: AppState = saved
@@ -129,30 +141,33 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
           })()
         : { ...emptyState, subscriptions: [] };
 
-      try {
-        const res = await fetch(`${API_BASE}/api/state`, {
+      // state取得と為替レート取得を並列実行
+      const [stateRes, liveRate] = await Promise.allSettled([
+        fetch(`${API_BASE}/api/state`, {
           headers: { Authorization: `Bearer ${authToken}` },
-        });
+        }),
+        fetchLiveRate(),
+      ]);
 
-        if (!res.ok) {
-          if (active) {
-            dispatch({ type: 'LOAD_STATE', payload: fallbackState });
-            setLoaded(true);
-          }
-          return;
-        }
+      let nextState = fallbackState;
 
-        const data = (await res.json()) as { state: AppState | null };
-        const nextState = data.state ? normalizeState(data.state) : fallbackState;
-        if (active) {
-          dispatch({ type: 'LOAD_STATE', payload: nextState });
-          setLoaded(true);
+      if (stateRes.status === 'fulfilled' && stateRes.value.ok) {
+        try {
+          const data = (await stateRes.value.json()) as { state: AppState | null };
+          if (data.state) nextState = normalizeState(data.state);
+        } catch {
+          // fallbackState を使用
         }
-      } catch {
-        if (active) {
-          dispatch({ type: 'LOAD_STATE', payload: fallbackState });
-          setLoaded(true);
-        }
+      }
+
+      // ライブレートが取得できていればstateに反映（LOAD_STATE後に上書きされるのを防ぐ）
+      if (liveRate.status === 'fulfilled' && liveRate.value !== null) {
+        nextState = { ...nextState, exchangeRate: liveRate.value };
+      }
+
+      if (active) {
+        dispatch({ type: 'LOAD_STATE', payload: nextState });
+        setLoaded(true);
       }
     }
 
@@ -177,24 +192,6 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
       });
     }, 500);
   }, [state, userId, authToken, loaded]);
-
-  // 為替レートを起動時に自動取得（open.er-api.com: 無料・認証不要）
-  useEffect(() => {
-    async function fetchRate() {
-      try {
-        const res = await fetch('https://open.er-api.com/v6/latest/USD');
-        if (!res.ok) return;
-        const data = await res.json() as { rates?: Record<string, number> };
-        const rate = data?.rates?.JPY;
-        if (typeof rate === 'number' && rate > 0) {
-          dispatch({ type: 'SET_EXCHANGE_RATE', payload: rate });
-        }
-      } catch {
-        // 取得失敗時はデフォルト値を維持
-      }
-    }
-    void fetchRate();
-  }, []);
 
   return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;
 }
