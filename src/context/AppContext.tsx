@@ -2,6 +2,7 @@
 import type { Subscription, AppState, Currency } from '../types';
 import { CATEGORY_COLORS } from '../types';
 import { DEFAULT_EXCHANGE_RATE as RATE } from '../utils/currency';
+import { isOverdue, nextBillingDate as calcNextBillingDate } from '../utils/date';
 
 type Action =
   | { type: 'ADD_SUBSCRIPTION'; payload: Subscription }
@@ -33,8 +34,22 @@ function normalizeCategory(category: string): string {
   return CATEGORY_MIGRATION_MAP[category] ?? category;
 }
 
-function normalizeState(parsed: AppState): AppState {
+function advanceOverdueDates(state: AppState): AppState {
   return {
+    ...state,
+    subscriptions: state.subscriptions.map((s) => {
+      if (s.status !== 'active') return s;
+      let date = s.nextBillingDate;
+      while (isOverdue(date)) {
+        date = calcNextBillingDate(date, s.billingCycle, s.customCycleDays);
+      }
+      return date !== s.nextBillingDate ? { ...s, nextBillingDate: date } : s;
+    }),
+  };
+}
+
+function normalizeState(parsed: AppState): AppState {
+  const normalized = {
     ...parsed,
     subscriptions: parsed.subscriptions.map((s) => {
       const category = normalizeCategory(s.category);
@@ -45,6 +60,7 @@ function normalizeState(parsed: AppState): AppState {
       };
     }),
   };
+  return advanceOverdueDates(normalized);
 }
 
 function reducer(state: AppState, action: Action): AppState {
