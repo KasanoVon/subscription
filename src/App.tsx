@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, Link } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { SubscriptionList } from './components/SubscriptionList';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { AuthPage } from './components/AuthPage';
+import { ChangelogPage } from './components/ChangelogPage';
 import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import type { Subscription } from './types';
@@ -94,6 +95,13 @@ function AppDashboard({ userId, authToken }: { userId: string; authToken: string
             flexWrap: 'wrap',
           }}
         >
+          <Link
+            to="/changelog"
+            style={{ color: 'var(--ink)', textDecoration: 'underline' }}
+          >
+            アップデート履歴
+          </Link>
+
           <span>
             お問い合わせ：
             <a
@@ -173,6 +181,7 @@ function AppRoutes() {
           )
         }
       />
+      <Route path="/changelog" element={<ChangelogPage />} />
       <Route
         path="*"
         element={<Navigate to={authState.currentUser && authState.token ? '/app' : '/login'} replace />}
