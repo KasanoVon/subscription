@@ -95,13 +95,6 @@ function AppDashboard({ userId, authToken }: { userId: string; authToken: string
             flexWrap: 'wrap',
           }}
         >
-          <Link
-            to="/changelog"
-            style={{ color: 'var(--ink)', textDecoration: 'underline' }}
-          >
-            アップデート履歴
-          </Link>
-
           <span>
             お問い合わせ：
             <a
@@ -150,6 +143,13 @@ function AppDashboard({ userId, authToken }: { userId: string; authToken: string
             </svg>
             シェア
           </button>
+
+          <Link
+            to="/changelog"
+            style={{ color: 'var(--ink)', textDecoration: 'underline' }}
+          >
+            アップデート履歴
+          </Link>
         </footer>
 
         {modalOpen && <SubscriptionModal editing={editing} onClose={closeModal} />}
