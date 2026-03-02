@@ -8,6 +8,7 @@ type Action =
   | { type: 'ADD_SUBSCRIPTION'; payload: Subscription }
   | { type: 'UPDATE_SUBSCRIPTION'; payload: Subscription }
   | { type: 'DELETE_SUBSCRIPTION'; payload: string }
+  | { type: 'REORDER_SUBSCRIPTIONS'; payload: Subscription[] }
   | { type: 'SET_DISPLAY_CURRENCY'; payload: Currency }
   | { type: 'SET_EXCHANGE_RATE'; payload: number }
   | { type: 'LOAD_STATE'; payload: AppState };
@@ -79,6 +80,8 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         subscriptions: state.subscriptions.filter((s) => s.id !== action.payload),
       };
+    case 'REORDER_SUBSCRIPTIONS':
+      return { ...state, subscriptions: action.payload };
     case 'SET_DISPLAY_CURRENCY':
       return { ...state, displayCurrency: action.payload };
     case 'SET_EXCHANGE_RATE':
