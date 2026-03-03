@@ -152,11 +152,11 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
   }
 
   return (
-    <div className="p-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="p-modal">
+    <div className="p-modal-overlay" role="presentation" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="p-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         {/* Header */}
         <div className="p-modal__header">
-          <h2 className="p-heading p-heading--md">
+          <h2 id="modal-title" className="p-heading p-heading--md">
             {editing ? '✏️ 編集' : '＋ 新規追加'}
           </h2>
           <button className="p-btn p-btn--ghost p-btn--icon" onClick={onClose} aria-label="閉じる">

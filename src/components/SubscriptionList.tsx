@@ -30,6 +30,26 @@ const STATUS_FILTERS: { label: string; value: SubscriptionStatus | 'all' }[] = [
   { label: 'キャンセル', value: 'cancelled' },
 ];
 
+function exportToCSV(subscriptions: Subscription[]) {
+  const headers = ['サービス名', '金額', '通貨', '請求サイクル', 'カスタム日数',
+    'カテゴリ', '次回更新日', 'ステータス', '支払方法', 'メモ', 'URL', '作成日'];
+  const rows = subscriptions.map((s) => [
+    s.name, s.amount, s.currency, s.billingCycle, s.customCycleDays ?? '',
+    s.category, s.nextBillingDate, s.status,
+    s.paymentMethod ?? '', s.notes ?? '', s.url ?? '', s.createdAt,
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `subnote-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function SortableCard({
   subscription,
   onEdit,
@@ -120,15 +140,24 @@ export function SubscriptionList({ onEdit }: SubscriptionListProps) {
           </span>
         </h2>
 
-        {/* Search */}
-        <input
-          type="search"
-          className="p-input"
-          placeholder="🔍 検索..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ maxWidth: '220px' }}
-        />
+        {/* Search + Export */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="search"
+            className="p-input"
+            placeholder="🔍 検索..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ maxWidth: '220px' }}
+          />
+          <button
+            className="p-btn p-btn--ghost p-btn--sm"
+            onClick={() => exportToCSV(state.subscriptions)}
+            title="CSV でエクスポート"
+          >
+            ↓ CSV
+          </button>
+        </div>
       </div>
 
       {/* Status Filter */}

@@ -63,8 +63,17 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 interface AuthContextValue {
   authState: AuthState;
   login: (username: string, password: string) => Promise<'ok' | 'invalid'>;
-  register: (username: string, password: string) => Promise<'ok' | 'taken' | 'server_error'>;
+  register: (
+    username: string,
+    password: string
+  ) => Promise<{ status: 'ok'; recoveryCode: string } | { status: 'taken' | 'server_error' }>;
   logout: () => void;
+  resetPassword: (
+    username: string,
+    recoveryCode: string,
+    newPassword: string
+  ) => Promise<'ok' | 'invalid' | 'no_recovery_code' | 'server_error'>;
+  setupRecoveryCode: () => Promise<{ status: 'ok'; recoveryCode: string } | { status: 'server_error' }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -170,7 +179,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function register(username: string, password: string): Promise<'ok' | 'taken' | 'server_error'> {
+  async function register(
+    username: string,
+    password: string
+  ): Promise<{ status: 'ok'; recoveryCode: string } | { status: 'taken' | 'server_error' }> {
     try {
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
@@ -178,13 +190,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: 'include',
         body: JSON.stringify({ username: username.trim(), password }),
       });
-      if (res.status === 409) return 'taken';
-      if (!res.ok) return 'server_error';
-      const data = (await res.json()) as AuthSuccessResponse;
+      if (res.status === 409) return { status: 'taken' };
+      if (!res.ok) return { status: 'server_error' };
+      const data = (await res.json()) as AuthSuccessResponse & { recoveryCode: string };
       dispatch({ type: 'LOGIN', payload: data });
-      return 'ok';
+      return { status: 'ok', recoveryCode: data.recoveryCode };
     } catch {
-      return 'server_error';
+      return { status: 'server_error' };
     }
   }
 
@@ -201,8 +213,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'LOGOUT' });
   }
 
+  async function resetPassword(
+    username: string,
+    recoveryCode: string,
+    newPassword: string
+  ): Promise<'ok' | 'invalid' | 'no_recovery_code' | 'server_error'> {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: username.trim(), recoveryCode, newPassword }),
+      });
+      if (res.status === 404) return 'no_recovery_code';
+      if (res.status === 401 || res.status === 400) return 'invalid';
+      if (!res.ok) return 'server_error';
+      return 'ok';
+    } catch {
+      return 'server_error';
+    }
+  }
+
+  async function setupRecoveryCode(): Promise<
+    { status: 'ok'; recoveryCode: string } | { status: 'server_error' }
+  > {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/setup-recovery-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (!res.ok) return { status: 'server_error' };
+      const data = (await res.json()) as { recoveryCode: string };
+      return { status: 'ok', recoveryCode: data.recoveryCode };
+    } catch {
+      return { status: 'server_error' };
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ authState, login, register, logout }}>
+    <AuthContext.Provider value={{ authState, login, register, logout, resetPassword, setupRecoveryCode }}>
       {children}
     </AuthContext.Provider>
   );

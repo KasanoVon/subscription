@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { AccountSettingsModal } from './AccountSettingsModal';
 import type { Currency } from '../types';
 
 interface HeaderProps {
@@ -12,6 +13,7 @@ export function Header({ onAddClick }: HeaderProps) {
   const { state, dispatch } = useApp();
   const { authState, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const push = usePushNotifications(authState.token ?? '');
 
   function setCurrency(c: Currency) {
@@ -21,6 +23,7 @@ export function Header({ onAddClick }: HeaderProps) {
   const username = authState.currentUser?.username ?? '';
 
   return (
+    <>
     <header
       style={{
         background: 'var(--paper-base)',
@@ -218,6 +221,25 @@ export function Header({ onAddClick }: HeaderProps) {
                   className="p-btn p-btn--ghost"
                   onClick={() => {
                     setMenuOpen(false);
+                    setSettingsOpen(true);
+                  }}
+                  style={{
+                    width: '100%',
+                    justifyContent: 'flex-start',
+                    borderRadius: '0',
+                    padding: '10px 14px',
+                    fontSize: '0.95rem',
+                    boxShadow: 'none',
+                    borderBottom: '1px dashed var(--pencil-line)',
+                  }}
+                >
+                  ⚙ アカウント設定
+                </button>
+
+                <button
+                  className="p-btn p-btn--ghost"
+                  onClick={() => {
+                    setMenuOpen(false);
                     logout();
                   }}
                   style={{
@@ -238,5 +260,8 @@ export function Header({ onAddClick }: HeaderProps) {
         </div>
       </div>
     </header>
+
+    {settingsOpen && <AccountSettingsModal onClose={() => setSettingsOpen(false)} />}
+    </>
   );
 }

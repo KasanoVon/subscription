@@ -82,6 +82,11 @@ await client.executeMultiple(`
   );
 `);
 
+// マイグレーション: recovery_code_hash カラムを追加（既存 DB に対して安全に実行）
+try {
+  await db.run('ALTER TABLE users ADD COLUMN recovery_code_hash TEXT');
+} catch { /* カラムが既に存在する場合は無視 */ }
+
 // VAPID キー初期化（DBに保存して永続化）
 let vapidPublicKey = '';
 
@@ -343,11 +348,16 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     const createdAt = new Date().toISOString().slice(0, 10);
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // リカバリーコードを生成（24文字の URL セーフ base64）
+    const recoveryCode = crypto.randomBytes(18).toString('base64url');
+    const recoveryCodeHash = await bcrypt.hash(recoveryCode, 10);
+
     await db.run(
-      'INSERT INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)',
+      'INSERT INTO users (id, username, password_hash, recovery_code_hash, created_at) VALUES (?, ?, ?, ?, ?)',
       id,
       username,
       passwordHash,
+      recoveryCodeHash,
       createdAt
     );
 
@@ -356,6 +366,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     return res.json({
       user: { id, username, createdAt },
       token: session.token,
+      recoveryCode, // 平文は1回だけ返す。以後はハッシュのみ保存。
     });
   } catch (error) {
     console.error(error);
@@ -473,6 +484,73 @@ app.post('/api/auth/logout', async (req, res) => {
     }
     clearAuthCookie(res);
     return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
+  try {
+    const username = String(req.body?.username ?? '').trim();
+    const recoveryCode = String(req.body?.recoveryCode ?? '');
+    const newPassword = String(req.body?.newPassword ?? '');
+
+    if (!username || !recoveryCode || newPassword.length < 6) {
+      return res.status(400).json({ error: 'invalid_input' });
+    }
+
+    const userRow = await db.get(
+      'SELECT id, recovery_code_hash FROM users WHERE username = ? COLLATE NOCASE',
+      username
+    );
+
+    // ユーザー不在も同じエラー（ユーザー名列挙防止）
+    if (!userRow) {
+      return res.status(401).json({ error: 'invalid_credentials' });
+    }
+
+    if (!userRow.recovery_code_hash) {
+      return res.status(404).json({ error: 'no_recovery_code' });
+    }
+
+    const codeOk = await bcrypt.compare(recoveryCode, userRow.recovery_code_hash);
+    if (!codeOk) {
+      return res.status(401).json({ error: 'invalid_credentials' });
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    // パスワードを更新し、リカバリーコードを無効化（使い捨て）
+    await db.run(
+      'UPDATE users SET password_hash = ?, recovery_code_hash = NULL WHERE id = ?',
+      newPasswordHash,
+      userRow.id
+    );
+    // 全セッションを無効化
+    await db.run('DELETE FROM sessions WHERE user_id = ?', userRow.id);
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.post('/api/auth/setup-recovery-code', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+
+    const recoveryCode = crypto.randomBytes(18).toString('base64url');
+    const recoveryCodeHash = await bcrypt.hash(recoveryCode, 10);
+
+    await db.run(
+      'UPDATE users SET recovery_code_hash = ? WHERE id = ?',
+      recoveryCodeHash,
+      user.id
+    );
+
+    return res.json({ recoveryCode }); // 平文は1回だけ返す
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'server_error' });
