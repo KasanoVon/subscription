@@ -3,7 +3,27 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { AccountSettingsModal } from './AccountSettingsModal';
-import type { Currency } from '../types';
+import type { Currency, Subscription } from '../types';
+
+function exportToCSV(subscriptions: Subscription[]) {
+  const headers = ['サービス名', '金額', '通貨', '請求サイクル', 'カスタム日数',
+    'カテゴリ', '次回更新日', 'ステータス', '支払方法', 'メモ', 'URL', '作成日'];
+  const rows = subscriptions.map((s) => [
+    s.name, s.amount, s.currency, s.billingCycle, s.customCycleDays ?? '',
+    s.category, s.nextBillingDate, s.status,
+    s.paymentMethod ?? '', s.notes ?? '', s.url ?? '', s.createdAt,
+  ]);
+  const csv = [headers, ...rows]
+    .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `subnote-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 interface HeaderProps {
   onAddClick: () => void;
@@ -216,6 +236,25 @@ export function Header({ onAddClick }: HeaderProps) {
                     )}
                   </div>
                 )}
+
+                <button
+                  className="p-btn p-btn--ghost"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    exportToCSV(state.subscriptions);
+                  }}
+                  style={{
+                    width: '100%',
+                    justifyContent: 'flex-start',
+                    borderRadius: '0',
+                    padding: '10px 14px',
+                    fontSize: '0.95rem',
+                    boxShadow: 'none',
+                    borderBottom: '1px dashed var(--pencil-line)',
+                  }}
+                >
+                  ↓ CSV エクスポート
+                </button>
 
                 <button
                   className="p-btn p-btn--ghost"
