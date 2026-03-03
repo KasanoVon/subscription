@@ -21,6 +21,7 @@ const TYPE_MAP: Record<string, { label: string; color: string; bg: string }> = {
   feat:     { label: '新機能',       color: '#2d7a4f', bg: '#e6f4ec' },
   fix:      { label: '修正',         color: '#b94040', bg: '#faeaea' },
   perf:     { label: '改善',         color: '#2a5ea8', bg: '#e8eef9' },
+  security: { label: 'セキュリティ', color: '#7b3fa0', bg: '#f3e8fa' },
   refactor: { label: 'リファクタ',   color: '#6b6b6b', bg: '#f0f0f0' },
   docs:     { label: 'ドキュメント', color: '#7a6020', bg: '#faf3e0' },
   chore:    { label: 'その他',       color: '#6b6b6b', bg: '#f0f0f0' },
