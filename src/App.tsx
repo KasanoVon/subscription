@@ -169,13 +169,13 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/login"
-        element={authState.currentUser && authState.token ? <Navigate to="/app" replace /> : <AuthPage />}
+        element={authState.currentUser ? <Navigate to="/app" replace /> : <AuthPage />}
       />
       <Route
         path="/app"
         element={
-          authState.currentUser && authState.token ? (
-            <AppDashboard userId={authState.currentUser.id} authToken={authState.token} />
+          authState.currentUser ? (
+            <AppDashboard userId={authState.currentUser.id} authToken={authState.token ?? ''} />
           ) : (
             <Navigate to="/login" replace />
           )
@@ -184,7 +184,7 @@ function AppRoutes() {
       <Route path="/changelog" element={<ChangelogPage />} />
       <Route
         path="*"
-        element={<Navigate to={authState.currentUser && authState.token ? '/app' : '/login'} replace />}
+        element={<Navigate to={authState.currentUser ? '/app' : '/login'} replace />}
       />
     </Routes>
   );
