@@ -41,8 +41,10 @@ function advanceOverdueDates(state: AppState): AppState {
     subscriptions: state.subscriptions.map((s) => {
       if (s.status !== 'active') return s;
       let date = s.nextBillingDate;
-      while (isOverdue(date)) {
+      let iterations = 0;
+      while (isOverdue(date) && iterations < 1000) {
         date = calcNextBillingDate(date, s.billingCycle, s.customCycleDays);
+        iterations++;
       }
       return date !== s.nextBillingDate ? { ...s, nextBillingDate: date } : s;
     }),

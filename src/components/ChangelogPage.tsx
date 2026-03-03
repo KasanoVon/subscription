@@ -17,6 +17,9 @@ interface ParsedCommit {
   message: string;
 }
 
+const GITHUB_REPO = 'KasanoVon/subscription';
+const GITHUB_BRANCH = import.meta.env.VITE_CHANGELOG_BRANCH ?? 'main';
+
 const TYPE_MAP: Record<string, { label: string; color: string; bg: string }> = {
   feat:     { label: '新機能',       color: '#2d7a4f', bg: '#e6f4ec' },
   fix:      { label: '修正',         color: '#b94040', bg: '#faeaea' },
@@ -47,7 +50,7 @@ export function ChangelogPage() {
 
   useEffect(() => {
     fetch(
-      'https://api.github.com/repos/KasanoVon/subscription/commits?sha=claude/subscription-management-app-3gncf&per_page=50',
+      `https://api.github.com/repos/${GITHUB_REPO}/commits?sha=${GITHUB_BRANCH}&per_page=50`,
       { headers: { Accept: 'application/vnd.github+json' } }
     )
       .then((r) => {

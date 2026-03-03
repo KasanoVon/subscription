@@ -39,7 +39,8 @@ const db = {
     return result.rows;
   },
   run: async (sql, ...args) => {
-    await client.execute({ sql, args });
+    const result = await client.execute({ sql, args });
+    return result;
   },
 };
 
@@ -454,6 +455,9 @@ app.put('/api/state', async (req, res) => {
     }
 
     const stateJson = JSON.stringify(state);
+    if (stateJson.length > 500_000) {
+      return res.status(413).json({ error: 'state_too_large' });
+    }
     const now = new Date().toISOString();
 
     await db.run(
@@ -520,12 +524,17 @@ app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
     }
 
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
-    // パスワードを更新し、リカバリーコードを無効化（使い捨て）
-    await db.run(
-      'UPDATE users SET password_hash = ?, recovery_code_hash = NULL WHERE id = ?',
+    // パスワード更新とリカバリーコード無効化をアトミックに実行
+    // recovery_code_hash IS NOT NULL の条件付きUPDATEで競合リクエストを排除
+    const updateResult = await db.run(
+      'UPDATE users SET password_hash = ?, recovery_code_hash = NULL WHERE id = ? AND recovery_code_hash IS NOT NULL',
       newPasswordHash,
       userRow.id
     );
+    if (updateResult.rowsAffected === 0) {
+      // 別リクエストが先にコードを消費した
+      return res.status(401).json({ error: 'invalid_credentials' });
+    }
     // 全セッションを無効化
     await db.run('DELETE FROM sessions WHERE user_id = ?', userRow.id);
 
