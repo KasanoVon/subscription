@@ -94,7 +94,6 @@ npm run build
 | `VAPID_PRIVATE_KEY` | Web Push VAPID 秘密鍵（省略時は DB 管理） | - |
 | `VAPID_EMAIL` | Web Push 連絡先メール | `noreply@subnote.app` |
 | `VITE_API_BASE` | フロントエンドの API ベースURL（本番用） | `''`（相対パス） |
-| `VITE_CHANGELOG_BRANCH` | アップデート履歴ページが参照する GitHub ブランチ名 | `claude/subscription-management-app-3gncf` |
 
 ---
 

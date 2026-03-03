@@ -18,7 +18,7 @@ interface ParsedCommit {
 }
 
 const GITHUB_REPO = 'KasanoVon/subscription';
-const GITHUB_BRANCH = import.meta.env.VITE_CHANGELOG_BRANCH ?? 'claude/subscription-management-app-3gncf';
+const GITHUB_BRANCH = 'claude/subscription-management-app-3gncf';
 
 const TYPE_MAP: Record<string, { label: string; color: string; bg: string }> = {
   feat:     { label: '新機能',       color: '#2d7a4f', bg: '#e6f4ec' },
