@@ -400,6 +400,12 @@ app.get('/api/auth/session', async (req, res) => {
     if (!row) {
       return res.status(401).json({ error: 'unauthorized' });
     }
+    // Migration: if authenticated via Bearer header (legacy localStorage token),
+    // set a Cookie so subsequent requests use Cookie-based auth.
+    const token = getTokenFromRequest(req);
+    if (token && !req.cookies?.auth_token) {
+      setAuthCookie(res, token);
+    }
     return res.json({ user: sanitizeUser(row) });
   } catch (error) {
     console.error(error);

@@ -96,13 +96,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'LOAD', payload: { currentUser: cachedUser, token: null } });
       }
 
+      // マイグレーション: 旧バージョンで localStorage に保存されていたトークンを Bearer として送信
+      const LEGACY_TOKEN_KEY = 'subnote_auth_token';
+      const legacyToken = localStorage.getItem(LEGACY_TOKEN_KEY);
+      const sessionHeaders: Record<string, string> = legacyToken
+        ? { Authorization: `Bearer ${legacyToken}` }
+        : {};
+
       try {
-        // Cookie が自動送信されるため credentials: 'include' のみで認証
+        // Cookie が自動送信される。旧トークンがあれば Bearer も送信（サーバーが Cookie を発行して移行完了）
         const res = await fetch(`${API_BASE}/api/auth/session`, {
           credentials: 'include',
+          headers: sessionHeaders,
         });
         if (res.status === 401 || res.status === 403) {
           localStorage.removeItem(USER_KEY);
+          localStorage.removeItem(LEGACY_TOKEN_KEY);
           if (active) {
             dispatch({ type: 'LOAD', payload: { currentUser: null, token: null } });
           }
@@ -116,8 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         const data = (await res.json()) as { user: User };
         localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        // 旧トークンは Cookie 移行完了後に削除
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
         if (active) {
-          // token は null（Cookie で管理）、ただし JSON レスポンスにあれば保持（Capacitor 用）
           dispatch({ type: 'LOAD', payload: { currentUser: data.user, token: null } });
         }
       } catch {
