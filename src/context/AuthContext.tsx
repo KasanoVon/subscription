@@ -74,7 +74,7 @@ interface AuthSuccessResponse {
   token: string;
 }
 
-function buildAuthHeader(token: string | null) {
+function buildAuthHeader(token: string | null): Record<string, string> {
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 }
