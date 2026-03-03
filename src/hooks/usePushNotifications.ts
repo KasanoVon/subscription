@@ -67,9 +67,10 @@ export function usePushNotifications(authToken: string) {
 
       await fetch(`${API_BASE}/api/push-subscription`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
         body: JSON.stringify({ subscription: sub }),
       });
@@ -92,7 +93,8 @@ export function usePushNotifications(authToken: string) {
 
       await fetch(`${API_BASE}/api/push-subscription`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: 'include',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
       });
 
       setSubscribed(false);

@@ -12,7 +12,7 @@ type AuthAction =
   | { type: 'LOGOUT' }
   | { type: 'LOAD'; payload: Pick<AuthState, 'currentUser' | 'token'> };
 
-const TOKEN_KEY = 'subnote_auth_token';
+// ユーザー情報（機密ではない）のみ localStorage に保存。トークンは保存しない。
 const USER_KEY = 'subnote_auth_user';
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
@@ -63,7 +63,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 interface AuthContextValue {
   authState: AuthState;
   login: (username: string, password: string) => Promise<'ok' | 'invalid'>;
-  register: (username: string, password: string) => Promise<'ok' | 'taken'>;
+  register: (username: string, password: string) => Promise<'ok' | 'taken' | 'server_error'>;
   logout: () => void;
 }
 
@@ -74,7 +74,8 @@ interface AuthSuccessResponse {
   token: string;
 }
 
-function buildAuthHeader(token: string) {
+function buildAuthHeader(token: string | null) {
+  if (!token) return {};
   return { Authorization: `Bearer ${token}` };
 }
 
@@ -89,27 +90,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let active = true;
 
     async function restoreSession() {
-      const token = localStorage.getItem(TOKEN_KEY);
+      // キャッシュユーザーがあれば即座に表示（楽観的UI）
       const cachedUser = readCachedUser();
-
-      if (!token) {
-        if (active) {
-          dispatch({ type: 'LOAD', payload: { currentUser: null, token: null } });
-        }
-        return;
-      }
-
-      // キャッシュがあれば即座にアプリを表示（楽観的UI）
       if (cachedUser && active) {
-        dispatch({ type: 'LOAD', payload: { currentUser: cachedUser, token } });
+        dispatch({ type: 'LOAD', payload: { currentUser: cachedUser, token: null } });
       }
 
       try {
+        // Cookie が自動送信されるため credentials: 'include' のみで認証
         const res = await fetch(`${API_BASE}/api/auth/session`, {
-          headers: buildAuthHeader(token),
+          credentials: 'include',
         });
         if (res.status === 401 || res.status === 403) {
-          localStorage.removeItem(TOKEN_KEY);
           localStorage.removeItem(USER_KEY);
           if (active) {
             dispatch({ type: 'LOAD', payload: { currentUser: null, token: null } });
@@ -125,7 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = (await res.json()) as { user: User };
         localStorage.setItem(USER_KEY, JSON.stringify(data.user));
         if (active) {
-          dispatch({ type: 'LOAD', payload: { currentUser: data.user, token } });
+          // token は null（Cookie で管理）、ただし JSON レスポンスにあれば保持（Capacitor 用）
+          dispatch({ type: 'LOAD', payload: { currentUser: data.user, token: null } });
         }
       } catch {
         if (!cachedUser && active) {
@@ -142,15 +135,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authState.initialized) return;
-    if (authState.token) {
-      localStorage.setItem(TOKEN_KEY, authState.token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  }, [authState.token, authState.initialized]);
-
-  useEffect(() => {
-    if (!authState.initialized) return;
     if (authState.currentUser) {
       localStorage.setItem(USER_KEY, JSON.stringify(authState.currentUser));
     } else {
@@ -163,10 +147,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ username: username.trim(), password }),
       });
       if (!res.ok) return 'invalid';
       const data = (await res.json()) as AuthSuccessResponse;
+      // Cookie はサーバーが設定。token はメモリのみ（Capacitor 用 Bearer ヘッダー）
       dispatch({ type: 'LOGIN', payload: data });
       return 'ok';
     } catch {
@@ -174,34 +160,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function register(username: string, password: string): Promise<'ok' | 'taken'> {
+  async function register(username: string, password: string): Promise<'ok' | 'taken' | 'server_error'> {
     try {
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ username: username.trim(), password }),
       });
       if (res.status === 409) return 'taken';
-      if (!res.ok) return 'taken';
+      if (!res.ok) return 'server_error';
       const data = (await res.json()) as AuthSuccessResponse;
       dispatch({ type: 'LOGIN', payload: data });
       return 'ok';
     } catch {
-      return 'taken';
+      return 'server_error';
     }
   }
 
   function logout() {
-    const token = authState.token;
-    if (token) {
-      void fetch(`${API_BASE}/api/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...buildAuthHeader(token),
-        },
-      });
-    }
+    // Cookie の削除はサーバー側で行う
+    void fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...buildAuthHeader(authState.token),
+      },
+    });
     dispatch({ type: 'LOGOUT' });
   }
 

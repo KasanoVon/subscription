@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { convertCurrency, formatCurrency, toMonthlyAmount } from '../utils/currency';
 import { daysUntil } from '../utils/date';
@@ -6,39 +7,48 @@ import { CATEGORY_COLORS } from '../types';
 export function Dashboard() {
   const { state } = useApp();
   const { subscriptions, displayCurrency, exchangeRate } = state;
-  const active = subscriptions.filter((s) => s.status === 'active');
+  const active = useMemo(
+    () => subscriptions.filter((s) => s.status === 'active'),
+    [subscriptions]
+  );
 
   // 月額合計 (表示通貨)
-  const totalMonthly = active.reduce((sum, s) => {
-    const amountInDisplay = convertCurrency(s.amount, s.currency, displayCurrency, exchangeRate);
-    const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle, s.customCycleDays);
-    return sum + monthly;
-  }, 0);
+  const totalMonthly = useMemo(
+    () =>
+      active.reduce((sum, s) => {
+        const amountInDisplay = convertCurrency(s.amount, s.currency, displayCurrency, exchangeRate);
+        const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle, s.customCycleDays);
+        return sum + monthly;
+      }, 0),
+    [active, displayCurrency, exchangeRate]
+  );
 
   // 年間合計
   const totalYearly = totalMonthly * 12;
 
   // カテゴリ別集計
-  const byCategory = active.reduce<Record<string, number>>((acc, s) => {
-    const amountInDisplay = convertCurrency(s.amount, s.currency, displayCurrency, exchangeRate);
-    const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle, s.customCycleDays);
-    acc[s.category] = (acc[s.category] || 0) + monthly;
-    return acc;
-  }, {});
-
-  const sortedCategories = Object.entries(byCategory)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  const sortedCategories = useMemo(() => {
+    const byCategory = active.reduce<Record<string, number>>((acc, s) => {
+      const amountInDisplay = convertCurrency(s.amount, s.currency, displayCurrency, exchangeRate);
+      const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle, s.customCycleDays);
+      acc[s.category] = (acc[s.category] || 0) + monthly;
+      return acc;
+    }, {});
+    return Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  }, [active, displayCurrency, exchangeRate]);
 
   // 近い更新日
-  const upcoming = subscriptions
-    .filter((s) => s.status === 'active')
-    .filter((s) => {
-      const days = daysUntil(s.nextBillingDate);
-      return days >= 0 && days <= 14;
-    })
-    .sort((a, b) => daysUntil(a.nextBillingDate) - daysUntil(b.nextBillingDate))
-    .slice(0, 5);
+  const upcoming = useMemo(
+    () =>
+      active
+        .filter((s) => {
+          const days = daysUntil(s.nextBillingDate);
+          return days >= 0 && days <= 14;
+        })
+        .sort((a, b) => daysUntil(a.nextBillingDate) - daysUntil(b.nextBillingDate))
+        .slice(0, 5),
+    [active]
+  );
 
   return (
     <div style={{ padding: '24px 20px 0' }}>

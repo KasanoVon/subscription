@@ -112,11 +112,29 @@ interface AppProviderProps {
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
-function authHeaders(token: string) {
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
+const RATE_CACHE_KEY = 'subnote_exchange_rate_cache';
+const RATE_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 時間
+
+function getCachedExchangeRate(): number | null {
+  try {
+    const raw = localStorage.getItem(RATE_CACHE_KEY);
+    if (!raw) return null;
+    const { rate, timestamp } = JSON.parse(raw) as { rate: number; timestamp: number };
+    if (Date.now() - timestamp < RATE_CACHE_TTL) return rate;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedExchangeRate(rate: number) {
+  localStorage.setItem(RATE_CACHE_KEY, JSON.stringify({ rate, timestamp: Date.now() }));
+}
+
+function authHeaders(token: string | null) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 export function AppProvider({ userId, authToken, children }: AppProviderProps) {
@@ -137,12 +155,20 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
     let active = true;
 
     async function fetchLiveRate(): Promise<number | null> {
+      // キャッシュが有効なら API 呼び出しをスキップ
+      const cached = getCachedExchangeRate();
+      if (cached !== null) return cached;
+
       try {
         const res = await fetch('https://open.er-api.com/v6/latest/USD');
         if (!res.ok) return null;
         const data = await res.json() as { rates?: Record<string, number> };
         const rate = data?.rates?.JPY;
-        return typeof rate === 'number' && rate > 0 ? rate : null;
+        if (typeof rate === 'number' && rate > 0) {
+          setCachedExchangeRate(rate);
+          return rate;
+        }
+        return null;
       } catch {
         return null;
       }
@@ -163,7 +189,8 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
       // state取得と為替レート取得を並列実行
       const [stateRes, liveRate] = await Promise.allSettled([
         fetch(`${API_BASE}/api/state`, {
-          headers: { Authorization: `Bearer ${authToken}` },
+          credentials: 'include',
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
         }),
         fetchLiveRate(),
       ]);
@@ -206,6 +233,7 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
     saveTimerRef.current = setTimeout(() => {
       void fetch(`${API_BASE}/api/state`, {
         method: 'PUT',
+        credentials: 'include',
         headers: authHeaders(authToken),
         body: JSON.stringify({ state }),
       });

@@ -26,7 +26,7 @@ const PAYMENT_METHOD_SUGGESTIONS = [
 ];
 
 function genId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  return crypto.randomUUID();
 }
 
 const DEFAULT_FORM: Omit<Subscription, 'id' | 'createdAt'> = {
@@ -118,6 +118,16 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
     if (!form.nextBillingDate) errs.nextBillingDate = '次回請求日を入力してください';
     if (form.billingCycle === 'custom' && (!form.customCycleDays || form.customCycleDays <= 0)) {
       errs.customCycleDays = '1以上の日数を入力してください';
+    }
+    if (form.url) {
+      try {
+        const parsed = new URL(form.url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          errs.url = 'http または https の URL を入力してください';
+        }
+      } catch {
+        errs.url = '有効な URL を入力してください';
+      }
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -415,6 +425,7 @@ export function SubscriptionModal({ editing, onClose }: SubscriptionModalProps) 
               onChange={(e) => set('url', e.target.value)}
               placeholder="https://example.com"
             />
+            {errors.url && <ErrorMsg msg={errors.url} />}
           </div>
 
           {/* Notes */}

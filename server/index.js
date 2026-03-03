@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { rateLimit } from 'express-rate-limit';
 import { createClient } from '@libsql/client';
 import bcrypt from 'bcryptjs';
@@ -130,9 +131,7 @@ function addDaysToDateStr(dateStr, days) {
 }
 
 function getTodayJST() {
-  const now = new Date();
-  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  return jst.toISOString().slice(0, 10);
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
 }
 
 async function sendRenewalNotifications() {
@@ -215,7 +214,9 @@ app.use(cors({
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
+app.use(cookieParser());
 app.use(express.json());
 
 if (isProd) {
@@ -268,9 +269,25 @@ function sanitizeUser(userRow) {
 }
 
 function getTokenFromRequest(req) {
+  // Cookie を優先（Web ブラウザ）、次に Authorization ヘッダー（Capacitor 等）
+  if (req.cookies?.auth_token) return req.cookies.auth_token;
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   return authHeader.slice('Bearer '.length).trim();
+}
+
+function setAuthCookie(res, token) {
+  res.cookie('auth_token', token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'strict',
+    maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000,
+    path: '/',
+  });
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie('auth_token', { path: '/' });
 }
 
 async function createSession(userId) {
@@ -335,6 +352,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     );
 
     const session = await createSession(id);
+    setAuthCookie(res, session.token);
     return res.json({
       user: { id, username, createdAt },
       token: session.token,
@@ -368,6 +386,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     }
 
     const session = await createSession(userRow.id);
+    setAuthCookie(res, session.token);
     return res.json({ user: sanitizeUser(userRow), token: session.token });
   } catch (error) {
     console.error(error);
@@ -446,6 +465,7 @@ app.post('/api/auth/logout', async (req, res) => {
     if (token) {
       await db.run('DELETE FROM sessions WHERE token = ?', token);
     }
+    clearAuthCookie(res);
     return res.status(204).send();
   } catch (error) {
     console.error(error);

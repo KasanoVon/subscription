@@ -55,6 +55,8 @@ export function AuthPage() {
         const result = await register(username.trim(), password);
         if (result === 'taken') {
           setError('このユーザー名はすでに使用されています');
+        } else if (result === 'server_error') {
+          setError('サーバーエラーが発生しました。しばらく経ってから再度お試しください');
         }
       }
     } finally {
