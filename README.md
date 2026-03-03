@@ -26,20 +26,6 @@
 | プッシュ通知 | Web Push API (VAPID) |
 | デプロイ | Railway |
 
-## ローカル開発
-
-```bash
-npm install
-
-# ターミナル1：バックエンド（ポート 8787）
-npm run server
-
-# ターミナル2：フロントエンド（ポート 5173）
-npm run dev
-```
-
-ローカル DB は `server/subnote.db` に自動生成されます。
-
 ## 環境変数（本番）
 
 | 変数 | 説明 |
