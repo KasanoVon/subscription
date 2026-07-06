@@ -58,7 +58,13 @@ export function ChangelogPage() {
         return r.json() as Promise<GitHubCommit[]>;
       })
       .then((data) => {
-        setCommits(data.flatMap((c) => parseCommit(c) ?? []));
+        // GitHub API はグラフ順で返すため、rebase 等で author date が
+        // 前後することがある。表示に使う日時で明示的に降順ソートする。
+        setCommits(
+          data
+            .flatMap((c) => parseCommit(c) ?? [])
+            .sort((a, b) => +parseISO(b.date) - +parseISO(a.date))
+        );
         setLoading(false);
       })
       .catch(() => {
