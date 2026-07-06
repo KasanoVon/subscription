@@ -14,7 +14,16 @@ function exportToCSV(subscriptions: Subscription[]) {
     s.paymentMethod ?? '', s.notes ?? '', s.url ?? '', s.createdAt,
   ]);
   const csv = [headers, ...rows]
-    .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .map((row) =>
+      row
+        .map((c) => {
+          let cell = String(c);
+          // Excel 等での数式インジェクション対策（=SUM(...) などの実行を防ぐ）
+          if (/^[=+\-@]/.test(cell)) cell = `'${cell}`;
+          return `"${cell.replace(/"/g, '""')}"`;
+        })
+        .join(',')
+    )
     .join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);

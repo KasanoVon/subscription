@@ -231,15 +231,26 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
 
     localStorage.setItem(storageKey(userId), JSON.stringify(state));
 
+    async function pushState(isRetry: boolean) {
+      try {
+        const res = await fetch(`${API_BASE}/api/state`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: authHeaders(authToken),
+          body: JSON.stringify({ state }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      } catch (e) {
+        console.error('[Sync] サーバー保存に失敗:', e);
+        // 1回だけ再試行。以降は次の state 変更時に再送されるため無限には繰り返さない
+        if (!isRetry) {
+          saveTimerRef.current = setTimeout(() => void pushState(true), 10_000);
+        }
+      }
+    }
+
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      void fetch(`${API_BASE}/api/state`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: authHeaders(authToken),
-        body: JSON.stringify({ state }),
-      });
-    }, 500);
+    saveTimerRef.current = setTimeout(() => void pushState(false), 500);
   }, [state, userId, authToken, loaded]);
 
   return <AppContext.Provider value={{ state, dispatch }}>{children}</AppContext.Provider>;

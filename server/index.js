@@ -204,6 +204,13 @@ cron.schedule('0 0 * * *', () => {
   void sendRenewalNotifications();
 });
 
+// 期限切れセッションの掃除は日次で実行
+// （getAuthUser のクエリは expires_at > now 条件付きなので、掃除が遅れても認証には影響しない）
+cron.schedule('30 0 * * *', () => {
+  console.log('[Cron] 期限切れセッション削除...');
+  void deleteExpiredSessions().catch((e) => console.error('[Cron] セッション削除エラー:', e.message));
+});
+
 const isProd = process.env.NODE_ENV === 'production';
 
 const app = express();
@@ -223,7 +230,9 @@ app.use(cors({
   credentials: true,
 }));
 app.use(cookieParser());
-app.use(express.json());
+// /api/state の 500KB チェックと整合させる（デフォルト 100kb だと先に 413 になる）
+app.use(express.json({ limit: '600kb' }));
+app.disable('x-powered-by');
 
 if (isProd) {
   app.use(express.static(distPath));
@@ -249,18 +258,21 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/debug/db', async (_req, res) => {
-  try {
-    const userCount = await db.get('SELECT COUNT(*) as count FROM users');
-    res.json({
-      db: tursoUrl.startsWith('file:') ? 'local-sqlite' : 'turso-cloud',
-      url: tursoUrl.startsWith('file:') ? tursoUrl : tursoUrl.replace(/\/\/.*@/, '//***@'),
-      userCount: userCount?.count ?? 0,
-    });
-  } catch (e) {
-    res.status(500).json({ error: String(e) });
-  }
-});
+// DB 情報・ユーザー数を露出するため開発時のみ有効
+if (!isProd) {
+  app.get('/api/debug/db', async (_req, res) => {
+    try {
+      const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+      res.json({
+        db: tursoUrl.startsWith('file:') ? 'local-sqlite' : 'turso-cloud',
+        url: tursoUrl.startsWith('file:') ? tursoUrl : tursoUrl.replace(/\/\/.*@/, '//***@'),
+        userCount: userCount?.count ?? 0,
+      });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+}
 
 function createSessionToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -314,7 +326,6 @@ async function deleteExpiredSessions() {
 }
 
 async function getAuthUser(req) {
-  await deleteExpiredSessions();
   const token = getTokenFromRequest(req);
   if (!token) return null;
 
@@ -509,13 +520,9 @@ app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
       username
     );
 
-    // ユーザー不在も同じエラー（ユーザー名列挙防止）
-    if (!userRow) {
+    // ユーザー不在・コード未設定も同じエラー（ユーザー名列挙防止）
+    if (!userRow || !userRow.recovery_code_hash) {
       return res.status(401).json({ error: 'invalid_credentials' });
-    }
-
-    if (!userRow.recovery_code_hash) {
-      return res.status(404).json({ error: 'no_recovery_code' });
     }
 
     const codeOk = await bcrypt.compare(recoveryCode, userRow.recovery_code_hash);
@@ -608,6 +615,11 @@ app.delete('/api/push-subscription', async (req, res) => {
     console.error(error);
     return res.status(500).json({ error: 'server_error' });
   }
+});
+
+// 未定義の API パスは SPA フォールバックに飲ませず JSON 404 を返す
+app.all('/api/*', (_req, res) => {
+  res.status(404).json({ error: 'not_found' });
 });
 
 if (isProd) {

@@ -65,7 +65,7 @@ export function usePushNotifications(authToken: string) {
         applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
 
-      await fetch(`${API_BASE}/api/push-subscription`, {
+      const saveRes = await fetch(`${API_BASE}/api/push-subscription`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -74,6 +74,11 @@ export function usePushNotifications(authToken: string) {
         },
         body: JSON.stringify({ subscription: sub }),
       });
+      // サーバー保存に失敗したら購読を取り消し、UI が「オン」のまま通知が届かない状態を防ぐ
+      if (!saveRes.ok) {
+        await sub.unsubscribe().catch(() => {});
+        throw new Error(`subscription save failed: HTTP ${saveRes.status}`);
+      }
 
       setSubscribed(true);
     } catch (e) {

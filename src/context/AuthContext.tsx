@@ -72,7 +72,7 @@ interface AuthContextValue {
     username: string,
     recoveryCode: string,
     newPassword: string
-  ) => Promise<'ok' | 'invalid' | 'no_recovery_code' | 'server_error'>;
+  ) => Promise<'ok' | 'invalid' | 'server_error'>;
   setupRecoveryCode: () => Promise<{ status: 'ok'; recoveryCode: string } | { status: 'server_error' }>;
 }
 
@@ -217,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     username: string,
     recoveryCode: string,
     newPassword: string
-  ): Promise<'ok' | 'invalid' | 'no_recovery_code' | 'server_error'> {
+  ): Promise<'ok' | 'invalid' | 'server_error'> {
     try {
       const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
         method: 'POST',
@@ -225,8 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: 'include',
         body: JSON.stringify({ username: username.trim(), recoveryCode, newPassword }),
       });
-      if (res.status === 404) return 'no_recovery_code';
-      if (res.status === 401 || res.status === 400) return 'invalid';
+      if (res.status === 401 || res.status === 400 || res.status === 404) return 'invalid';
       if (!res.ok) return 'server_error';
       return 'ok';
     } catch {

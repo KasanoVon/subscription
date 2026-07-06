@@ -17,8 +17,10 @@ export function daysUntil(dateStr: string): number {
   return differenceInDays(target, today);
 }
 
+// 日付単位で比較する。時刻で比較すると更新日当日（請求前）に
+// true になり、advanceOverdueDates が日付を繰り上げてしまう。
 export function isOverdue(dateStr: string): boolean {
-  return isBefore(parseISO(dateStr), new Date());
+  return daysUntil(dateStr) < 0;
 }
 
 export function isUpcomingSoon(dateStr: string, days: number = 7): boolean {

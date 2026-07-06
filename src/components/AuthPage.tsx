@@ -124,8 +124,6 @@ export function AuthPage() {
       const result = await resetPassword(resetUsername.trim(), resetCode.trim(), resetNewPassword);
       if (result === 'ok') {
         setResetSuccess(true);
-      } else if (result === 'no_recovery_code') {
-        setError('リカバリーコードが設定されていません。ログイン後、アカウント設定から生成してください');
       } else {
         setError('ユーザー名またはリカバリーコードが正しくありません');
       }
