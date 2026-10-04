@@ -32,6 +32,11 @@ export function formatCurrency(amount: number, currency: Currency): string {
   }).format(amount);
 }
 
+// 為替レートの表示用。formatCurrency は JPY を整数に丸め、全角￥を出すため別途用意
+export function formatExchangeRate(rate: number): string {
+  return `$1 = ¥${rate.toFixed(2)}`;
+}
+
 export function toMonthlyAmount(
   amount: number,
   billingCycle: BillingCycle,

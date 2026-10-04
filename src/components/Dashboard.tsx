@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { convertCurrency, formatCurrency, toMonthlyAmount } from '../utils/currency';
+import { convertCurrency, formatCurrency, formatExchangeRate, toMonthlyAmount } from '../utils/currency';
 import { daysUntil } from '../utils/date';
 import { CATEGORY_COLORS } from '../types';
 
@@ -65,6 +65,7 @@ export function Dashboard() {
           label="月額合計"
           value={formatCurrency(totalMonthly, displayCurrency)}
           sub={`${active.length} 件のサブスクリプション`}
+          corner={formatExchangeRate(exchangeRate)}
         />
         <StatCard
           label="年間合計（概算）"
@@ -190,12 +191,23 @@ export function Dashboard() {
   );
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatCard({
+  label,
+  value,
+  sub,
+  corner,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  corner?: string;
+}) {
   return (
     <div className="p-stat-card">
       <div className="p-stat-card__label">{label}</div>
       <div className="p-stat-card__value">{value}</div>
       {sub && <div className="p-stat-card__sub">{sub}</div>}
+      {corner && <div className="p-stat-card__corner">{corner}</div>}
     </div>
   );
 }
