@@ -78,8 +78,8 @@ export function Dashboard() {
         />
         <StatCard
           label="ドル円レート"
-          value={formatExchangeRate(exchangeRate)}
-          sub="1 USD あたり"
+          value={formatExchangeRate(exchangeRate, displayCurrency)}
+          sub={displayCurrency === 'USD' ? '100 円あたり' : '1 USD あたり'}
         />
       </div>
 

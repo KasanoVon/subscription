@@ -32,9 +32,20 @@ export function formatCurrency(amount: number, currency: Currency): string {
   }).format(amount);
 }
 
-// 為替レート（1 USD あたりの円）の表示用。formatCurrency は JPY を整数に丸めるため、
-// 同じ ja-JP 書式（￥記号を揃える）で小数2桁を残す
-export function formatExchangeRate(rate: number): string {
+// 為替レートの表示用。表示通貨に合わせて向きを変える
+//   JPY: 1 USD あたりの円（￥157.82）
+//   USD: 100 円あたりのドル（$0.6336）
+// formatCurrency は JPY を整数に、USD を小数2桁に丸めるため別途用意。
+// USD 側は2桁だと ¥1 程度の変動が見えない（0.633→0.629）ので4桁にする
+export function formatExchangeRate(rate: number, display: Currency): string {
+  if (display === 'USD') {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
+    }).format(100 / rate);
+  }
   return new Intl.NumberFormat('ja-JP', {
     style: 'currency',
     currency: 'JPY',
