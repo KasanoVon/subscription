@@ -65,7 +65,6 @@ export function Dashboard() {
           label="月額合計"
           value={formatCurrency(totalMonthly, displayCurrency)}
           sub={`${active.length} 件のサブスクリプション`}
-          corner={formatExchangeRate(exchangeRate)}
         />
         <StatCard
           label="年間合計（概算）"
@@ -76,6 +75,11 @@ export function Dashboard() {
           label="アクティブ"
           value={`${active.length}`}
           sub={`停止中 ${subscriptions.filter((s) => s.status === 'paused').length} 件`}
+        />
+        <StatCard
+          label="ドル円レート"
+          value={formatExchangeRate(exchangeRate)}
+          sub="1 USD あたり"
         />
       </div>
 
@@ -191,23 +195,12 @@ export function Dashboard() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  sub,
-  corner,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  corner?: string;
-}) {
+function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="p-stat-card">
       <div className="p-stat-card__label">{label}</div>
       <div className="p-stat-card__value">{value}</div>
       {sub && <div className="p-stat-card__sub">{sub}</div>}
-      {corner && <div className="p-stat-card__corner">{corner}</div>}
     </div>
   );
 }

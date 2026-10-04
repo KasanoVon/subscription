@@ -32,9 +32,15 @@ export function formatCurrency(amount: number, currency: Currency): string {
   }).format(amount);
 }
 
-// 為替レートの表示用。formatCurrency は JPY を整数に丸め、全角￥を出すため別途用意
+// 為替レート（1 USD あたりの円）の表示用。formatCurrency は JPY を整数に丸めるため、
+// 同じ ja-JP 書式（￥記号を揃える）で小数2桁を残す
 export function formatExchangeRate(rate: number): string {
-  return `$1 = ¥${rate.toFixed(2)}`;
+  return new Intl.NumberFormat('ja-JP', {
+    style: 'currency',
+    currency: 'JPY',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(rate);
 }
 
 export function toMonthlyAmount(

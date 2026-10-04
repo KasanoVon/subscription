@@ -346,16 +346,6 @@ body {
   margin-top: 4px;
 }
 
-/* タイル右下の補足（為替レートなど）。absolute にすると狭幅で
-   折り返した __sub と重なるため、通常フローの右寄せ1行にする */
-.p-stat-card__corner {
-  font-family: var(--font-sketch);
-  font-size: 0.78rem;
-  color: var(--ink-faint);
-  text-align: right;
-  margin-top: 6px;
-}
-
 /* ---- Category Bar ---- */
 .p-category-bar {
   height: 8px;
