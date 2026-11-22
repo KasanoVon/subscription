@@ -448,3 +448,21 @@ main {
   color: var(--ink);
   font-weight: 500;
 }
+
+/* フッターのシェアボタン（アプリ画面のフッターと同じ見た目） */
+.lp-footer .lp-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1.5px solid var(--paper-darker);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  color: var(--ink);
+  text-decoration: none;
+  background: none;
+}
+
+.lp-footer .lp-share:hover {
+  border-color: var(--pencil-line);
+}
