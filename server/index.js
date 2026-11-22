@@ -88,6 +88,17 @@ try {
   await db.run('ALTER TABLE users ADD COLUMN recovery_code_hash TEXT');
 } catch { /* カラムが既に存在する場合は無視 */ }
 
+// Claude の Routine など外部から読み取り専用 API を呼ぶためのトークン（1ユーザー1つ）
+await db.run(`
+  CREATE TABLE IF NOT EXISTS api_tokens (
+    user_id TEXT PRIMARY KEY,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )
+`);
+
 // VAPID キー初期化（DBに保存して永続化）
 let vapidPublicKey = '';
 
@@ -138,6 +149,32 @@ function addDaysToDateStr(dateStr, days) {
 
 function getTodayJST() {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
+}
+
+// date-fns の addMonths と同じく、月末は翌月の末日に丸める（1/31 → 2/28）
+function addMonthsToDateStr(dateStr, months) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return target.toISOString().slice(0, 10);
+}
+
+// 保存済みの次回更新日が過去なら、周期ぶん進めて今日以降にする。
+// クライアントの advanceOverdueDates と同じ処理。アプリを開いていない間は
+// 保存データの日付が過去のまま残るため、サーバー側でも揃える必要がある。
+function advanceToCurrent(dateStr, cycle, customCycleDays, today) {
+  let date = dateStr;
+  for (let i = 0; date < today && i < 1000; i++) {
+    switch (cycle) {
+      case 'weekly': date = addDaysToDateStr(date, 7); break;
+      case 'monthly': date = addMonthsToDateStr(date, 1); break;
+      case 'yearly': date = addMonthsToDateStr(date, 12); break;
+      case 'custom': date = addDaysToDateStr(date, customCycleDays || 30); break;
+      default: return date;
+    }
+  }
+  return date;
 }
 
 async function sendRenewalNotifications() {
@@ -567,6 +604,87 @@ app.post('/api/auth/setup-recovery-code', async (req, res) => {
     );
 
     return res.json({ recoveryCode }); // 平文は1回だけ返す
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ---- 外部連携用 API トークン ----
+// 32 バイト乱数なので bcrypt は不要。SHA-256 で保存し、ハッシュで直接引く。
+function hashApiToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+// Authorization ヘッダーの API トークンだけを見る（Cookie は見ない）。
+// セッション用の getAuthUser とは別系統で、ここで通るのは下の読み取り専用 API だけ。
+async function getApiTokenUser(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer snk_')) return null;
+  const tokenHash = hashApiToken(authHeader.slice('Bearer '.length).trim());
+  const row = await db.get('SELECT user_id FROM api_tokens WHERE token_hash = ?', tokenHash);
+  if (!row) return null;
+  await db.run('UPDATE api_tokens SET last_used_at = ? WHERE user_id = ?', new Date().toISOString(), row.user_id);
+  return { id: row.user_id };
+}
+
+app.post('/api/api-token', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+
+    const token = `snk_${crypto.randomBytes(32).toString('hex')}`;
+    // 1ユーザー1トークン。再発行すると旧トークンは無効になる
+    await db.run(
+      `INSERT INTO api_tokens (user_id, token_hash, created_at) VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET token_hash = excluded.token_hash,
+         created_at = excluded.created_at, last_used_at = NULL`,
+      user.id,
+      hashApiToken(token),
+      new Date().toISOString()
+    );
+    return res.json({ token }); // 平文は1回だけ返す
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.delete('/api/api-token', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+    await db.run('DELETE FROM api_tokens WHERE user_id = ?', user.id);
+    return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// 翌日（JST）に更新されるアクティブなサブスクを返す。Claude の Routine から毎晩呼ばれる
+app.get('/api/renewals/tomorrow', async (req, res) => {
+  try {
+    const user = await getApiTokenUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+
+    const today = getTodayJST();
+    const tomorrow = addDaysToDateStr(today, 1);
+    const row = await db.get('SELECT state_json FROM user_states WHERE user_id = ?', user.id);
+    const state = row ? JSON.parse(row.state_json) : {};
+
+    const items = (state.subscriptions ?? [])
+      .filter((s) => s.status === 'active' && typeof s.nextBillingDate === 'string')
+      .filter((s) => advanceToCurrent(s.nextBillingDate, s.billingCycle, s.customCycleDays, today) === tomorrow)
+      .map((s) => ({
+        name: s.name,
+        amount: s.amount,
+        currency: s.currency,
+        billingCycle: s.billingCycle,
+        paymentMethod: s.paymentMethod ?? null,
+      }));
+
+    return res.json({ date: tomorrow, exchangeRate: state.exchangeRate ?? null, items });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'server_error' });
