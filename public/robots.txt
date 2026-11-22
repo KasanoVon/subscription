@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /
-Allow: /login
 Disallow: /app
+Disallow: /api/
+# カレンダー配信は Google カレンダー等が取りに来るので止めない（応答に noindex を付けている）
+Allow: /api/calendar/
 
 Sitemap: https://subnote.up.railway.app/sitemap.xml

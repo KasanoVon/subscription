@@ -25,7 +25,10 @@ const linkBtnStyle: React.CSSProperties = {
 
 export function AuthPage() {
   const { login, register, resetPassword } = useAuth();
-  const [mode, setMode] = useState<Mode>('login');
+  // 紹介ページの「無料で始める」は /login?mode=register で新規登録タブを開く
+  const [mode, setMode] = useState<Mode>(() =>
+    new URLSearchParams(window.location.search).get('mode') === 'register' ? 'register' : 'login'
+  );
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

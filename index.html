@@ -2,36 +2,122 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // ログイン済みの人と Android アプリ（Capacitor）は、紹介ページではなくアプリ画面へ。
+      // Capacitor の目印は読み込みの途中で入ることがあるので、読み込み後にもう一度確かめる
+      (function () {
+        function goApp() {
+          try {
+            if (window.Capacitor || localStorage.getItem('subnote_auth_user')) location.replace('/app');
+          } catch (e) {}
+        }
+        goApp();
+        document.addEventListener('DOMContentLoaded', goApp);
+      })();
+    </script>
+    <title>SubNote｜無料のサブスク管理アプリ（更新日の通知・カレンダー連携・円ドル換算）</title>
+    <meta
+      name="description"
+      content="SubNote（サブノート）は無料のサブスク管理アプリ。Netflix や Spotify などの更新日と金額をまとめて管理し、更新前の通知や Google カレンダー連携で引き落としを見逃しません。ドル建てのサブスクも自動で円に換算します。"
+    />
+    <link rel="canonical" href="https://subnote.up.railway.app/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://subnote.up.railway.app/" />
+    <meta property="og:title" content="SubNote｜無料のサブスク管理アプリ" />
+    <meta
+      property="og:description"
+      content="サブスクの更新日と金額をまとめて管理。更新前の通知やカレンダー連携で、知らない間の引き落としをなくせます。"
+    />
+    <meta property="og:image" content="https://subnote.up.railway.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="SubNote - サブスクの更新日を、もう見逃さない" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:site_name" content="SubNote" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@KasanoVonZ" />
+    <meta name="twitter:title" content="SubNote｜無料のサブスク管理アプリ" />
+    <meta
+      name="twitter:description"
+      content="サブスクの更新日と金額をまとめて管理。更新前の通知やカレンダー連携で、知らない間の引き落としをなくせます。"
+    />
+    <meta name="twitter:image" content="https://subnote.up.railway.app/og-image.png" />
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#2C2B26" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="SubNote" />
-    <title>SubNote - サブスクリプション管理</title>
 
-    <!-- SEO -->
-    <meta name="description" content="SubNote - サブスクリプションをまとめて管理。更新3日前・前日に通知が届くので、知らない間の引き落としをなくせます。" />
-    <link rel="canonical" href="https://subnote.up.railway.app/" />
-
-    <!-- OGP -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://subnote.up.railway.app/" />
-    <meta property="og:title" content="SubNote - サブスクリプション管理" />
-    <meta property="og:description" content="サブスクリプションをまとめて管理。更新3日前・前日に通知が届くので、知らない間の引き落としをなくせます。" />
-    <meta property="og:image" content="https://subnote.up.railway.app/icon-512.png" />
-    <meta property="og:locale" content="ja_JP" />
-    <meta property="og:site_name" content="SubNote" />
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:site" content="@KasanoVonZ" />
-    <meta name="twitter:title" content="SubNote - サブスクリプション管理" />
-    <meta name="twitter:description" content="サブスクリプションをまとめて管理。更新3日前・前日に通知が届くので、知らない間の引き落としをなくせます。" />
-    <meta name="twitter:image" content="https://subnote.up.railway.app/icon-512.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebApplication",
+            "name": "SubNote",
+            "alternateName": "サブノート",
+            "url": "https://subnote.up.railway.app/",
+            "description": "サブスクの更新日と金額をまとめて管理する無料のアプリ。更新前の通知、Google カレンダー・iPhone のカレンダー連携、ドル建てサブスクの円換算、支払い方法別の集計、月額の推移グラフに対応。",
+            "applicationCategory": "FinanceApplication",
+            "operatingSystem": "Web",
+            "inLanguage": "ja",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "無料で使えますか？",
+                "acceptedAnswer": { "@type": "Answer", "text": "はい。すべての機能を無料で使えます。" }
+              },
+              {
+                "@type": "Question",
+                "name": "メールアドレスは必要ですか？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "不要です。ユーザー名とパスワードだけで登録できます。パスワードを忘れたときは、登録時に表示されるリカバリーコードで再設定できます。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "ドル建てのサブスクも管理できますか？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "はい。円とドルのどちらでも登録でき、為替レートを自動で取得して月額や年額の合計を円・ドルのどちらでも表示します。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "更新日を忘れないようにするには？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "対応ブラウザでは更新日の3日前と前日にプッシュ通知を受け取れます。カレンダー連携を使うと、Google カレンダーや iPhone のカレンダーに更新日が予定として表示され、前日にリマインダーが届きます。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "スマホでも使えますか？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "はい。スマホのブラウザで使えます。ホーム画面に追加すると、アプリのように開けます。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "データの安全性は？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "通信はすべて HTTPS で暗号化しています。パスワードは元に戻せない形（ハッシュ）で保存し、ログイン状態はスクリプトから読み取れない Cookie で管理しています。"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -39,9 +125,143 @@
       href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Sans+JP:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="/src/styles/pencil.css" />
+    <link rel="stylesheet" href="/src/styles/landing.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <header class="lp-header">
+      <a class="lp-logo" href="/" aria-label="SubNote トップ">
+        <span aria-hidden="true">✏️</span>
+        <span class="p-heading p-heading--lg">SubNote</span>
+      </a>
+      <nav class="lp-nav" aria-label="アカウント">
+        <a class="p-btn p-btn--ghost lp-nav__login" href="/login">ログイン</a>
+        <a class="p-btn p-btn--primary" href="/login?mode=register">無料で始める</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="lp-hero">
+        <div class="lp-hero__text">
+          <h1 class="lp-hero__title">サブスクの更新日を、<br />もう見逃さない。</h1>
+          <p class="lp-hero__lead">
+            SubNote（サブノート）は、無料のサブスク管理アプリです。Netflix や Spotify などの更新日と金額をひとつにまとめ、
+            更新前の通知やカレンダー連携で、知らない間の引き落としをなくします。
+          </p>
+          <div class="lp-cta">
+            <a class="p-btn p-btn--primary lp-cta__main" href="/login?mode=register">無料で始める</a>
+            <a class="p-btn" href="/login">ログイン</a>
+          </div>
+          <p class="lp-note">メールアドレス不要。ユーザー名とパスワードだけで始められます。</p>
+        </div>
+        <figure class="lp-hero__figure">
+          <img
+            src="/screenshot-dashboard.webp"
+            width="1000"
+            height="625"
+            alt="SubNote のダッシュボード。月額合計・年間合計・ドル円レート、カテゴリ別と支払い方法別の内訳、近日の更新、月額の推移グラフが並ぶ"
+            fetchpriority="high"
+          />
+        </figure>
+      </section>
+
+      <section class="lp-section" aria-labelledby="features-title">
+        <h2 id="features-title" class="lp-section__title">SubNote でできること</h2>
+        <div class="lp-features">
+          <article class="p-card lp-feature">
+            <h3 class="lp-feature__title">📋 更新日と金額をまとめて管理</h3>
+            <p>週払い・月払い・年払い、30日ごとなどの独自の周期にも対応。更新日が過ぎると、次の更新日へ自動で進みます。</p>
+          </article>
+          <article class="p-card lp-feature">
+            <h3 class="lp-feature__title">🔔 更新の前に通知</h3>
+            <p>対応ブラウザでは、更新日の3日前と前日にプッシュ通知でお知らせ。近日の更新はダッシュボードでもひと目でわかります。</p>
+          </article>
+          <article class="p-card lp-feature">
+            <h3 class="lp-feature__title">📅 カレンダー連携</h3>
+            <p>Google カレンダーや iPhone のカレンダーに、更新日を予定として表示。前日にリマインダーが届きます。</p>
+          </article>
+          <article class="p-card lp-feature">
+            <h3 class="lp-feature__title">💱 ドル建ても自動で円換算</h3>
+            <p>円とドルが混ざっていても大丈夫。為替レートを自動で取得し、合計を円・ドルのどちらでも表示します。</p>
+          </article>
+          <article class="p-card lp-feature">
+            <h3 class="lp-feature__title">📊 支出の内訳と推移</h3>
+            <p>カテゴリ別・支払い方法別（カードごと）の内訳と、月額合計の推移グラフで、使いすぎに気づけます。</p>
+          </article>
+          <article class="p-card lp-feature">
+            <h3 class="lp-feature__title">✏️ すばやく登録・書き出し</h3>
+            <p>40以上の人気サービスは名前の入力候補から選ぶだけ。一覧は CSV で書き出せます。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="lp-section" aria-labelledby="steps-title">
+        <h2 id="steps-title" class="lp-section__title">使い方は3ステップ</h2>
+        <ol class="lp-steps">
+          <li class="lp-step">
+            <span class="lp-step__num" aria-hidden="true">1</span>
+            <div>
+              <h3 class="lp-step__title">アカウントを作る</h3>
+              <p>ユーザー名とパスワードを決めるだけ。メールアドレスは要りません。</p>
+            </div>
+          </li>
+          <li class="lp-step">
+            <span class="lp-step__num" aria-hidden="true">2</span>
+            <div>
+              <h3 class="lp-step__title">サブスクを登録する</h3>
+              <p>サービス名・金額・次の更新日を入れます。人気のサービスは候補から選べます。</p>
+            </div>
+          </li>
+          <li class="lp-step">
+            <span class="lp-step__num" aria-hidden="true">3</span>
+            <div>
+              <h3 class="lp-step__title">通知とカレンダーを設定する</h3>
+              <p>プッシュ通知をオンにするか、カレンダー連携で更新日をいつものカレンダーに表示します。</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="lp-section" aria-labelledby="faq-title">
+        <h2 id="faq-title" class="lp-section__title">よくある質問</h2>
+        <div class="lp-faq">
+          <div class="lp-faq__item">
+            <h3>無料で使えますか？</h3>
+            <p>はい。すべての機能を無料で使えます。</p>
+          </div>
+          <div class="lp-faq__item">
+            <h3>メールアドレスは必要ですか？</h3>
+            <p>不要です。ユーザー名とパスワードだけで登録できます。パスワードを忘れたときは、登録時に表示されるリカバリーコードで再設定できます。</p>
+          </div>
+          <div class="lp-faq__item">
+            <h3>ドル建てのサブスクも管理できますか？</h3>
+            <p>はい。円とドルのどちらでも登録でき、為替レートを自動で取得して月額や年額の合計を円・ドルのどちらでも表示します。</p>
+          </div>
+          <div class="lp-faq__item">
+            <h3>更新日を忘れないようにするには？</h3>
+            <p>対応ブラウザでは更新日の3日前と前日にプッシュ通知を受け取れます。カレンダー連携を使うと、Google カレンダーや iPhone のカレンダーに更新日が予定として表示され、前日にリマインダーが届きます。</p>
+          </div>
+          <div class="lp-faq__item">
+            <h3>スマホでも使えますか？</h3>
+            <p>はい。スマホのブラウザで使えます。ホーム画面に追加すると、アプリのように開けます。</p>
+          </div>
+          <div class="lp-faq__item">
+            <h3>データの安全性は？</h3>
+            <p>通信はすべて HTTPS で暗号化しています。パスワードは元に戻せない形（ハッシュ）で保存し、ログイン状態はスクリプトから読み取れない Cookie で管理しています。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="lp-final">
+        <h2 class="lp-final__title">今日から、サブスクの見落としをゼロに。</h2>
+        <a class="p-btn p-btn--primary lp-cta__main" href="/login?mode=register">無料で始める</a>
+      </section>
+    </main>
+
+    <footer class="lp-footer">
+      <span>お問い合わせ：<a href="https://x.com/KasanoVonZ" target="_blank" rel="noopener noreferrer">@KasanoVonZ</a> on X</span>
+      <a href="/changelog">アップデート履歴</a>
+      <span>© SubNote</span>
+    </footer>
   </body>
 </html>

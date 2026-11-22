@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, Link, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { SubscriptionList } from './components/SubscriptionList';
@@ -158,8 +158,21 @@ function AppDashboard({ userId, authToken }: { userId: string; authToken: string
   );
 }
 
+// 画面遷移でタブのタイトルを切り替える（初回表示ではサーバーが server/pages.js の値を入れている）
+const PAGE_TITLES: Record<string, string> = {
+  '/login': 'ログイン・新規登録｜SubNote',
+  '/changelog': 'アップデート履歴｜SubNote',
+  '/app': 'SubNote - サブスクリプション管理',
+};
+
 function AppRoutes() {
   const { authState } = useAuth();
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    const title = PAGE_TITLES[pathname];
+    if (title) document.title = title;
+  }, [pathname]);
 
   if (!authState.initialized) {
     return <LoadingScreen />;

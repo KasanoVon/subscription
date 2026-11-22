@@ -77,6 +77,17 @@ npm test
 
 ---
 
+## ページ構成と SEO
+
+- `/`：静的な紹介ページ（`index.html` + `src/styles/landing.css`、JavaScript のバンドルなし）。検索エンジン向けの本文・構造化データ（WebApplication / FAQPage）を持つ。FAQ を変えるときは、画面の文と JSON-LD の文を必ず一字一句そろえる（Google は両者の一致を求める）
+- 紹介ページ冒頭のスクリプトで、ログイン済み（`subnote_auth_user` あり）と Android アプリ（`window.Capacitor`）は `/app` へ移動する。Capacitor は本番の `/` を開くため
+- `/login`・`/app`・`/changelog`：React のアプリ画面（`app.html`）。本番では `server/pages.js` がページごとのタイトル・説明文・canonical・OGP を埋め込む。`/app` は noindex。開発時は `vite.config.ts` のプラグインが同じパスで `app.html` を返す
+- 上記以外のパスは 404（`public/404.html`）。`/index.html`・`/app.html` は正式な URL へ 301
+- シェア画像は `public/og-image.png`（1200×630）、紹介ページの画面写真は `public/screenshot-dashboard.webp`
+- 新しいページを増やしたら `server/pages.js`・`vite.config.ts` の `APP_ROUTES`・`src/App.tsx` の `PAGE_TITLES`・`public/sitemap.xml` をそろえる
+
+---
+
 ## カレンダー配信（ICS）
 
 - アカウント設定の「📅 カレンダー連携」で秘密の URL を発行（`POST /api/calendar-token`、`DELETE` で停止）。URL は発行時に1回だけ表示し、再発行で古い URL は 404 になる
@@ -128,11 +139,15 @@ npm test
 
 ```
 server/
+  pages.js          # アプリ画面のページごとのメタタグ（SEO）
+  pages.test.js
   index.js          # Express API サーバー（認証・状態保存・Push通知）
   dates.js          # サーバー側の日付計算（JST の今日・月末丸め・更新日の繰り上げ）
   dates.test.js
   calendar.js       # カレンダー配信（ICS）の組み立て
   calendar.test.js
+index.html          # / の紹介ページ（静的）
+app.html            # アプリ画面（React）の HTML
 src/
   types.ts          # 型定義・カテゴリ定数
   App.tsx           # ルーティング・SVGフィルター注入

@@ -12,6 +12,7 @@ import webpush from 'web-push';
 import cron from 'node-cron';
 import { addDaysToDateStr, getTodayJST, advanceToCurrent } from './dates.js';
 import { buildCalendar } from './calendar.js';
+import { renderAppPage } from './pages.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_DAYS = 30;
@@ -238,6 +239,10 @@ app.use(express.json({ limit: '600kb' }));
 app.disable('x-powered-by');
 
 if (isProd) {
+  // 同じページが2つの URL で見えないよう、ファイル名での直接アクセスは正式な URL へ
+  app.get('/index.html', (_req, res) => res.redirect(301, '/'));
+  app.get('/app.html', (_req, res) => res.redirect(301, '/app'));
+  // / は静的な紹介ページ（dist/index.html）がそのまま返る
   app.use(express.static(distPath));
 }
 
@@ -636,6 +641,8 @@ app.get('/api/calendar/:file', async (req, res) => {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': 'inline; filename="subnote.ics"',
       'Cache-Control': 'private, max-age=0',
+      // 秘密の URL なので、万一どこかに貼られても検索結果に載せない
+      'X-Robots-Tag': 'noindex, nofollow',
     });
     return res.send(ics);
   } catch (error) {
@@ -694,8 +701,15 @@ app.all('/api/*', (_req, res) => {
 });
 
 if (isProd) {
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
+  const siteUrl = process.env.SITE_URL ?? ALLOWED_ORIGIN;
+  const appTemplate = fs.readFileSync(path.join(distPath, 'app.html'), 'utf8');
+
+  // アプリ画面のページにはページごとのタイトル・説明文を埋め込んで返す。
+  // それ以外は 404（以前は何でも 200 で返していたため、存在しない URL が正常なページに見えていた）
+  app.get('*', (req, res) => {
+    const html = renderAppPage(appTemplate, req.path, siteUrl);
+    if (html) return res.type('html').send(html);
+    return res.status(404).sendFile(path.join(distPath, '404.html'));
   });
 }
 
