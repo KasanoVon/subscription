@@ -27,6 +27,8 @@ const TYPE_MAP: Record<string, { label: string; color: string; bg: string }> = {
   security: { label: 'セキュリティ', color: '#7b3fa0', bg: '#f3e8fa' },
   refactor: { label: 'リファクタ',   color: '#6b6b6b', bg: '#f0f0f0' },
   docs:     { label: 'ドキュメント', color: '#7a6020', bg: '#faf3e0' },
+  test:     { label: 'テスト',       color: '#2a7a80', bg: '#e6f4f5' },
+  revert:   { label: '取り消し',     color: '#a8602a', bg: '#faefe6' },
   chore:    { label: 'その他',       color: '#6b6b6b', bg: '#f0f0f0' },
 };
 
