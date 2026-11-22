@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { SubscriptionCard } from './SubscriptionCard';
 import type { Subscription, SubscriptionStatus } from '../types';
+import { SORT_OPTIONS, isSortKey, sortSubscriptions, type SortKey } from '../utils/sort';
 import {
   DndContext,
   closestCenter,
@@ -29,6 +30,32 @@ const STATUS_FILTERS: { label: string; value: SubscriptionStatus | 'all' }[] = [
   { label: '停止中', value: 'paused' },
   { label: 'キャンセル', value: 'cancelled' },
 ];
+
+const gridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+  gap: '14px',
+};
+
+// 並び順は端末ごとの好みなので localStorage に覚えておく（使えなくても動く）
+const SORT_STORAGE_KEY = 'subnote_sort';
+
+function loadSortKey(): SortKey {
+  try {
+    const saved = localStorage.getItem(SORT_STORAGE_KEY);
+    return isSortKey(saved) ? saved : 'manual';
+  } catch {
+    return 'manual';
+  }
+}
+
+function saveSortKey(key: SortKey) {
+  try {
+    localStorage.setItem(SORT_STORAGE_KEY, key);
+  } catch {
+    // 保存できなくても並べ替え自体は動く
+  }
+}
 
 function SortableCard({
   subscription,
@@ -60,20 +87,31 @@ export function SubscriptionList({ onEdit }: SubscriptionListProps) {
   const { state, dispatch } = useApp();
   const [filterStatus, setFilterStatus] = useState<SubscriptionStatus | 'all'>('all');
   const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>(loadSortKey);
+
+  function changeSort(key: SortKey) {
+    setSortKey(key);
+    saveSortKey(key);
+  }
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
 
-  const filtered = state.subscriptions.filter((s) => {
-    const matchStatus = filterStatus === 'all' || s.status === filterStatus;
-    const matchSearch =
-      search === '' ||
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.category.toLowerCase().includes(search.toLowerCase());
-    return matchStatus && matchSearch;
-  });
+  const filtered = sortSubscriptions(
+    state.subscriptions.filter((s) => {
+      const matchStatus = filterStatus === 'all' || s.status === filterStatus;
+      const matchSearch =
+        search === '' ||
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.category.toLowerCase().includes(search.toLowerCase());
+      return matchStatus && matchSearch;
+    }),
+    sortKey,
+    state.displayCurrency,
+    state.exchangeRate
+  );
 
   function handleDelete(id: string) {
     dispatch({ type: 'DELETE_SUBSCRIPTION', payload: id });
@@ -131,17 +169,43 @@ export function SubscriptionList({ onEdit }: SubscriptionListProps) {
         />
       </div>
 
-      {/* Status Filter */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            className={`p-btn p-btn--sm${filterStatus === f.value ? ' p-btn--primary' : ''}`}
-            onClick={() => setFilterStatus(f.value)}
+      {/* Status Filter + Sort */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '8px',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              className={`p-btn p-btn--sm${filterStatus === f.value ? ' p-btn--primary' : ''}`}
+              onClick={() => setFilterStatus(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--ink-light)' }}>
+          並び順
+          <select
+            className="p-select"
+            value={sortKey}
+            onChange={(e) => changeSort(e.target.value as SortKey)}
+            style={{ width: 'auto', padding: '5px 8px', fontSize: '0.85rem' }}
           >
-            {f.label}
-          </button>
-        ))}
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {/* Cards Grid */}
@@ -215,17 +279,10 @@ export function SubscriptionList({ onEdit }: SubscriptionListProps) {
             </div>
           </div>
         )
-      ) : (
+      ) : sortKey === 'manual' ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={filtered.map((s) => s.id)} strategy={rectSortingStrategy}>
-            <div
-              className="p-sub-grid"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: '14px',
-              }}
-            >
+            <div className="p-sub-grid" style={gridStyle}>
               {filtered.map((s) => (
                 <SortableCard
                   key={s.id}
@@ -237,6 +294,13 @@ export function SubscriptionList({ onEdit }: SubscriptionListProps) {
             </div>
           </SortableContext>
         </DndContext>
+      ) : (
+        // 自動の並び順のときはドラッグできない（並べ替えても並び順で上書きされるため）
+        <div className="p-sub-grid" style={gridStyle}>
+          {filtered.map((s) => (
+            <SubscriptionCard key={s.id} subscription={s} onEdit={onEdit} onDelete={handleDelete} />
+          ))}
+        </div>
       )}
     </section>
   );

@@ -1,8 +1,17 @@
 import { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { convertCurrency, formatCurrency, formatExchangeRate, toMonthlyAmount } from '../utils/currency';
+import {
+  convertCurrency,
+  formatCurrency,
+  formatExchangeRate,
+  groupMonthlyTotals,
+  monthlyTotal,
+} from '../utils/currency';
 import { daysUntil } from '../utils/date';
 import { CATEGORY_COLORS } from '../types';
+import { SpendingTrend } from './SpendingTrend';
+
+const NO_PAYMENT_METHOD = '未設定';
 
 export function Dashboard() {
   const { state } = useApp();
@@ -14,12 +23,7 @@ export function Dashboard() {
 
   // 月額合計 (表示通貨)
   const totalMonthly = useMemo(
-    () =>
-      active.reduce((sum, s) => {
-        const amountInDisplay = convertCurrency(s.amount, s.currency, displayCurrency, exchangeRate);
-        const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle, s.customCycleDays);
-        return sum + monthly;
-      }, 0),
+    () => monthlyTotal(active, displayCurrency, exchangeRate),
     [active, displayCurrency, exchangeRate]
   );
 
@@ -27,14 +31,23 @@ export function Dashboard() {
   const totalYearly = totalMonthly * 12;
 
   // カテゴリ別集計
-  const sortedCategories = useMemo(() => {
-    const byCategory = active.reduce<Record<string, number>>((acc, s) => {
-      const amountInDisplay = convertCurrency(s.amount, s.currency, displayCurrency, exchangeRate);
-      const monthly = toMonthlyAmount(amountInDisplay, s.billingCycle, s.customCycleDays);
-      acc[s.category] = (acc[s.category] || 0) + monthly;
-      return acc;
-    }, {});
-    return Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const sortedCategories = useMemo(
+    () =>
+      groupMonthlyTotals(active, (s) => s.category, displayCurrency, exchangeRate)
+        .slice(0, 5)
+        .map((g) => [g.key, g.total] as const),
+    [active, displayCurrency, exchangeRate]
+  );
+
+  // 支払い方法別集計（支払い方法がひとつも入力されていなければ表示しない）
+  const paymentMethods = useMemo(() => {
+    if (!active.some((s) => s.paymentMethod?.trim())) return [];
+    return groupMonthlyTotals(
+      active,
+      (s) => s.paymentMethod?.trim() || NO_PAYMENT_METHOD,
+      displayCurrency,
+      exchangeRate
+    );
   }, [active, displayCurrency, exchangeRate]);
 
   // 近い更新日
@@ -143,6 +156,60 @@ export function Dashboard() {
           </div>
         )}
 
+        {/* Payment Method Breakdown */}
+        {paymentMethods.length > 0 && (
+          <div className="p-card p-card--flat" style={{ border: '1.5px solid var(--ink)' }}>
+            <h2 className="p-heading p-heading--sm" style={{ marginBottom: '14px' }}>
+              💳 支払い方法別
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {paymentMethods.map((g) => {
+                const pct = totalMonthly > 0 ? (g.total / totalMonthly) * 100 : 0;
+                const unset = g.key === NO_PAYMENT_METHOD;
+                return (
+                  <div key={g.key}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'baseline',
+                        gap: '8px',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-sketch)',
+                          fontSize: '0.95rem',
+                          color: unset ? 'var(--ink-light)' : 'var(--ink)',
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {g.key}
+                        <span style={{ fontSize: '0.8rem', color: 'var(--ink-light)', marginLeft: '6px' }}>
+                          {g.count}件
+                        </span>
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-sketch)', fontSize: '0.9rem', color: 'var(--ink-light)', flexShrink: 0 }}>
+                        {formatCurrency(g.total, displayCurrency)}/月
+                      </span>
+                    </div>
+                    <div className="p-category-bar">
+                      <div
+                        className="p-category-bar__fill"
+                        style={{ width: `${pct}%`, background: unset ? 'var(--pencil-line)' : 'var(--graphite)' }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Upcoming Renewals */}
         {upcoming.length > 0 && (
           <div className="p-card p-card--flat" style={{ border: '1.5px solid var(--ink)' }}>
@@ -190,6 +257,8 @@ export function Dashboard() {
             </div>
           </div>
         )}
+
+        <SpendingTrend history={state.monthlyHistory} currency={displayCurrency} />
       </div>
     </div>
   );

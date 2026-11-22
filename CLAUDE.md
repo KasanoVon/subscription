@@ -89,7 +89,9 @@ npm test
 
 ## 主要な設計判断
 
-- **状態永続化**: `AppState`（サブスクリプション一覧 + 通貨設定）は `user_states` テーブルに JSON ブロブとして一括保存。サブスクリプション単位のDBレコードはない。
+- **状態永続化**: `AppState`（サブスクリプション一覧 + 通貨設定 + 月ごとの支出記録）は `user_states` テーブルに JSON ブロブとして一括保存。サブスクリプション単位のDBレコードはない。
+- **支出の推移**: `AppState.monthlyHistory` に月ごとの月額合計（円換算）と当時のレートを記録。`AppContext` がサブスクやレートの変化時に今月分を上書きし、過去の月は残す（最大36か月）。アプリを開かなかった月は記録がなく、グラフでは「—」になる。計算は `src/utils/history.ts`
+- **一覧の並び順**: 手動（ドラッグ）・更新日・金額（表示通貨の月額換算）・名前。選択は端末ごとに localStorage（`subnote_sort`）に保存。手動以外ではドラッグ不可
 - **カテゴリ移行**: `AppContext.tsx` の `CATEGORY_MIGRATION_MAP` で旧英語カテゴリ名を日本語に変換。保存済みデータをロード時に `normalizeCategory()` で自動移行。
 - **為替レート**: ログイン時に `open.er-api.com` からリアルタイムレートを取得。失敗時は `DEFAULT_EXCHANGE_RATE`（150円/ドル）を使用。通貨変換はレンダリング時に実施。
 - **スタイル**: 手書き風カスタム CSS（`src/styles/pencil.css`）と SVG `feTurbulence` フィルター（`id="pencil-sketch"`、`App.tsx` で注入）。
@@ -145,6 +147,7 @@ src/
     SubscriptionCard.tsx
     SubscriptionList.tsx
     SubscriptionModal.tsx
+    SpendingTrend.tsx # 月額の推移グラフ
   hooks/
     usePushNotifications.ts  # Web Push 購読管理
   utils/
@@ -152,6 +155,10 @@ src/
     currency.test.ts
     date.ts         # 日付ユーティリティ
     date.test.ts
+    history.ts      # 月ごとの支出記録・推移グラフ用の系列
+    history.test.ts
+    sort.ts         # 一覧の並べ替え
+    sort.test.ts
     servicePresets.ts # サービス名プリセット
   styles/
     pencil.css      # 手書き風スタイル

@@ -1,4 +1,4 @@
-import type { Currency, BillingCycle } from '../types';
+import type { Currency, BillingCycle, Subscription } from '../types';
 
 // 為替レート: 1 USD = JPY
 export const DEFAULT_EXCHANGE_RATE = 150;
@@ -99,4 +99,40 @@ export function billingCycleLabel(cycle: BillingCycle, customCycleDays?: number)
     case 'custom':
       return customCycleDays ? `${customCycleDays}日ごと` : 'カスタム';
   }
+}
+
+type BillableSub = Pick<Subscription, 'amount' | 'currency' | 'billingCycle' | 'customCycleDays'>;
+
+// 1件のサブスクの月額を、指定した通貨に換算して返す
+export function monthlyAmountIn(sub: BillableSub, currency: Currency, rate: number): number {
+  return toMonthlyAmount(convertCurrency(sub.amount, sub.currency, currency, rate), sub.billingCycle, sub.customCycleDays);
+}
+
+// 月額の合計（指定した通貨）
+export function monthlyTotal(subs: BillableSub[], currency: Currency, rate: number): number {
+  return subs.reduce((sum, s) => sum + monthlyAmountIn(s, currency, rate), 0);
+}
+
+export interface GroupTotal {
+  key: string;
+  total: number;
+  count: number;
+}
+
+// キーごとに月額を合計し、金額の多い順に並べる（カテゴリ別・支払い方法別の内訳用）
+export function groupMonthlyTotals<T extends BillableSub>(
+  subs: T[],
+  keyOf: (sub: T) => string,
+  currency: Currency,
+  rate: number
+): GroupTotal[] {
+  const groups = new Map<string, GroupTotal>();
+  for (const s of subs) {
+    const key = keyOf(s);
+    const g = groups.get(key) ?? { key, total: 0, count: 0 };
+    g.total += monthlyAmountIn(s, currency, rate);
+    g.count += 1;
+    groups.set(key, g);
+  }
+  return [...groups.values()].sort((a, b) => b.total - a.total);
 }

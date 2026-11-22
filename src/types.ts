@@ -25,10 +25,18 @@ export interface Subscription {
   createdAt: string;
 }
 
+// 月ごとの支出の記録（支出の推移グラフ用）。その月の最後の状態で上書きされる
+export interface MonthlySnapshot {
+  month: string; // 'YYYY-MM'
+  totalJPY: number; // アクティブなサブスクの月額合計（円換算・整数）
+  rate: number; // 記録したときのドル円レート（ドル表示への換算用）
+}
+
 export interface AppState {
   subscriptions: Subscription[];
   displayCurrency: Currency;
   exchangeRate: number;
+  monthlyHistory?: MonthlySnapshot[];
 }
 
 export const CATEGORIES = [

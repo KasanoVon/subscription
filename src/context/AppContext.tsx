@@ -1,8 +1,9 @@
 ﻿import React, { createContext, useContext, useReducer, useEffect, useState, useRef } from 'react';
-import type { Subscription, AppState, Currency } from '../types';
+import type { Subscription, AppState, Currency, MonthlySnapshot } from '../types';
 import { CATEGORY_COLORS } from '../types';
-import { DEFAULT_EXCHANGE_RATE as RATE } from '../utils/currency';
-import { isOverdue, nextBillingDate as calcNextBillingDate } from '../utils/date';
+import { DEFAULT_EXCHANGE_RATE as RATE, monthlyTotal } from '../utils/currency';
+import { isOverdue, nextBillingDate as calcNextBillingDate, todayISOString } from '../utils/date';
+import { upsertSnapshot } from '../utils/history';
 
 type Action =
   | { type: 'ADD_SUBSCRIPTION'; payload: Subscription }
@@ -11,6 +12,7 @@ type Action =
   | { type: 'REORDER_SUBSCRIPTIONS'; payload: Subscription[] }
   | { type: 'SET_DISPLAY_CURRENCY'; payload: Currency }
   | { type: 'SET_EXCHANGE_RATE'; payload: number }
+  | { type: 'RECORD_MONTHLY_SNAPSHOT'; payload: MonthlySnapshot }
   | { type: 'LOAD_STATE'; payload: AppState };
 
 const emptyState: AppState = {
@@ -88,6 +90,11 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, displayCurrency: action.payload };
     case 'SET_EXCHANGE_RATE':
       return { ...state, exchangeRate: action.payload };
+    case 'RECORD_MONTHLY_SNAPSHOT': {
+      const monthlyHistory = upsertSnapshot(state.monthlyHistory, action.payload);
+      // 変化がなければ同じ state を返し、再描画と保存を起こさない
+      return monthlyHistory === state.monthlyHistory ? state : { ...state, monthlyHistory };
+    }
     case 'LOAD_STATE':
       return action.payload;
     default:
@@ -225,6 +232,21 @@ export function AppProvider({ userId, authToken, children }: AppProviderProps) {
       active = false;
     };
   }, [userId, authToken]);
+
+  // 今月の支出（月額合計）を記録する。サブスクやレートが変わるたびに今月分を上書きし、
+  // 月が変われば新しい月の記録が始まる（過去の月はそのまま残る）
+  useEffect(() => {
+    if (!loaded) return;
+    const active = state.subscriptions.filter((s) => s.status === 'active');
+    dispatch({
+      type: 'RECORD_MONTHLY_SNAPSHOT',
+      payload: {
+        month: todayISOString().slice(0, 7),
+        totalJPY: Math.round(monthlyTotal(active, 'JPY', state.exchangeRate)),
+        rate: Math.round(state.exchangeRate * 100) / 100,
+      },
+    });
+  }, [state.subscriptions, state.exchangeRate, loaded]);
 
   useEffect(() => {
     if (!loaded) return;

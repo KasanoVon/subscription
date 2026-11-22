@@ -7,6 +7,9 @@ import {
   toMonthlyAmount,
   toYearlyAmount,
   billingCycleLabel,
+  monthlyAmountIn,
+  monthlyTotal,
+  groupMonthlyTotals,
 } from './currency';
 
 describe('convertCurrency', () => {
@@ -102,5 +105,35 @@ describe('billingCycleLabel', () => {
     expect(billingCycleLabel('yearly')).toBe('年払い');
     expect(billingCycleLabel('custom', 45)).toBe('45日ごと');
     expect(billingCycleLabel('custom')).toBe('カスタム');
+  });
+});
+
+describe('monthlyAmountIn / monthlyTotal / groupMonthlyTotals', () => {
+  const subs = [
+    { amount: 1490, currency: 'JPY' as const, billingCycle: 'monthly' as const, category: 'エンタメ', pay: '楽天カード' },
+    { amount: 9.99, currency: 'USD' as const, billingCycle: 'monthly' as const, category: '音楽', pay: '楽天カード' },
+    { amount: 12000, currency: 'JPY' as const, billingCycle: 'yearly' as const, category: 'エンタメ', pay: '' },
+  ];
+
+  it('1件の月額を指定通貨に換算する', () => {
+    expect(monthlyAmountIn(subs[1], 'JPY', 150)).toBeCloseTo(1498.5);
+    expect(monthlyAmountIn(subs[2], 'USD', 150)).toBeCloseTo(1000 / 150);
+  });
+
+  it('月額の合計', () => {
+    expect(monthlyTotal(subs, 'JPY', 150)).toBeCloseTo(1490 + 1498.5 + 1000);
+    expect(monthlyTotal([], 'JPY', 150)).toBe(0);
+  });
+
+  it('キーごとに合計し、多い順に並べる', () => {
+    const byCategory = groupMonthlyTotals(subs, (s) => s.category, 'JPY', 150);
+    expect(byCategory.map((g) => g.key)).toEqual(['エンタメ', '音楽']);
+    expect(byCategory[0].total).toBeCloseTo(2490);
+    expect(byCategory[0].count).toBe(2);
+    const byPay = groupMonthlyTotals(subs, (s) => s.pay || '未設定', 'JPY', 150);
+    expect(byPay).toEqual([
+      { key: '楽天カード', total: expect.closeTo(2988.5), count: 2 },
+      { key: '未設定', total: 1000, count: 1 },
+    ]);
   });
 });
