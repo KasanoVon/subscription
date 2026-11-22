@@ -74,8 +74,6 @@ interface AuthContextValue {
     newPassword: string
   ) => Promise<'ok' | 'invalid' | 'server_error'>;
   setupRecoveryCode: () => Promise<{ status: 'ok'; recoveryCode: string } | { status: 'server_error' }>;
-  setupApiToken: () => Promise<{ status: 'ok'; token: string } | { status: 'server_error' }>;
-  revokeApiToken: () => Promise<'ok' | 'server_error'>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -252,37 +250,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function setupApiToken(): Promise<{ status: 'ok'; token: string } | { status: 'server_error' }> {
-    try {
-      const res = await fetch(`${API_BASE}/api/api-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-      if (!res.ok) return { status: 'server_error' };
-      const data = (await res.json()) as { token: string };
-      return { status: 'ok', token: data.token };
-    } catch {
-      return { status: 'server_error' };
-    }
-  }
-
-  async function revokeApiToken(): Promise<'ok' | 'server_error'> {
-    try {
-      const res = await fetch(`${API_BASE}/api/api-token`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      return res.ok ? 'ok' : 'server_error';
-    } catch {
-      return 'server_error';
-    }
-  }
-
   return (
-    <AuthContext.Provider
-      value={{ authState, login, register, logout, resetPassword, setupRecoveryCode, setupApiToken, revokeApiToken }}
-    >
+    <AuthContext.Provider value={{ authState, login, register, logout, resetPassword, setupRecoveryCode }}>
       {children}
     </AuthContext.Provider>
   );
