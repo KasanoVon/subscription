@@ -164,6 +164,8 @@ export function AccountSettingsModal({ onClose }: AccountSettingsModalProps) {
             )}
           </div>
 
+          <CalendarFeedSection />
+
           {/* 閉じるボタン */}
           <div style={{ textAlign: 'right' }}>
             <button type="button" className="p-btn p-btn--ghost" onClick={onClose}>
@@ -172,6 +174,179 @@ export function AccountSettingsModal({ onClose }: AccountSettingsModalProps) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// 更新日をカレンダーアプリに配信する秘密の URL を発行する
+function CalendarFeedSection() {
+  const { setupCalendarFeed, revokeCalendarFeed } = useAuth();
+  const [url, setUrl] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  // カレンダーアプリに「購読」として渡すには webcal:// が使われる
+  const webcalUrl = url.replace(/^https?:\/\//, 'webcal://');
+  const googleUrl = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
+
+  async function handleGenerate() {
+    if (url === '' && !confirm('URL を発行します。以前に発行した URL がある場合、そちらのカレンダーは更新されなくなります')) return;
+    setError('');
+    setMessage('');
+    setLoading(true);
+    try {
+      const result = await setupCalendarFeed();
+      if (result.status === 'ok') {
+        setUrl(result.url);
+        setCopied(false);
+      } else {
+        setError('URL の発行に失敗しました。しばらく経ってから再度お試しください');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRevoke() {
+    if (!confirm('カレンダー連携を止めますか？登録済みのカレンダーは更新されなくなります')) return;
+    setError('');
+    setLoading(true);
+    try {
+      if ((await revokeCalendarFeed()) === 'ok') {
+        setUrl('');
+        setMessage('カレンダー連携を止めました');
+      } else {
+        setError('停止に失敗しました。しばらく経ってから再度お試しください');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // クリップボード API 未対応の場合は手動コピー
+    }
+  }
+
+  const linkButtonStyle: React.CSSProperties = {
+    width: '100%',
+    justifyContent: 'center',
+    fontSize: '0.9rem',
+    textDecoration: 'none',
+    marginTop: '8px',
+  };
+
+  return (
+    <div
+      style={{
+        borderBottom: '1px dashed var(--pencil-line)',
+        paddingBottom: '20px',
+        marginBottom: '20px',
+      }}
+    >
+      <h3
+        style={{
+          fontFamily: 'var(--font-sketch)',
+          fontWeight: 700,
+          fontSize: '1rem',
+          marginBottom: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}
+      >
+        📅 カレンダー連携
+      </h3>
+      <p style={{ fontSize: '0.88rem', color: 'var(--ink-light)', marginBottom: '12px', lineHeight: 1.5 }}>
+        サブスクの更新日を、Google カレンダーや iPhone のカレンダーに予定として表示します（1年先まで・前日 9 時にリマインダー）。
+        URL を知っている人は誰でも更新日と金額を見られるので、他の人に共有しないでください。
+      </p>
+
+      {error && (
+        <div
+          style={{
+            background: 'var(--red-bg)',
+            border: '1.5px solid var(--red)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '8px 12px',
+            color: 'var(--red)',
+            fontSize: '0.85rem',
+            marginBottom: '12px',
+          }}
+        >
+          ⚠ {error}
+        </div>
+      )}
+      {message && (
+        <p style={{ fontSize: '0.85rem', color: 'var(--ink)', marginBottom: '12px' }}>✓ {message}</p>
+      )}
+
+      {url ? (
+        <>
+          <p style={{ fontSize: '0.85rem', color: 'var(--red)', fontWeight: 600, marginBottom: '10px' }}>
+            ⚠ この URL は二度と表示されません。今すぐカレンダーに追加してください。
+          </p>
+          <div
+            style={{
+              background: 'var(--paper-warm)',
+              border: '2px solid var(--ink)',
+              borderRadius: 'var(--radius)',
+              padding: '12px',
+              marginBottom: '10px',
+            }}
+          >
+            <code style={{ fontFamily: 'monospace', fontSize: '0.75rem', wordBreak: 'break-all', color: 'var(--ink)' }}>
+              {url}
+            </code>
+          </div>
+          <button
+            type="button"
+            className="p-btn p-btn--ghost"
+            onClick={handleCopy}
+            style={{ width: '100%', justifyContent: 'center', fontSize: '0.9rem' }}
+          >
+            {copied ? '✓ コピーしました' : '📋 URL をコピー'}
+          </button>
+          <a className="p-btn p-btn--ghost" href={googleUrl} target="_blank" rel="noopener noreferrer" style={linkButtonStyle}>
+            Google カレンダーに追加
+          </a>
+          <a className="p-btn p-btn--ghost" href={webcalUrl} style={linkButtonStyle}>
+            iPhone・Mac のカレンダーに追加
+          </a>
+          <p style={{ fontSize: '0.78rem', color: 'var(--ink-faint)', marginTop: '8px', lineHeight: 1.5 }}>
+            ※ Google カレンダーへの追加はパソコンのブラウザで行ってください（スマホのアプリからは追加できません）。
+            追加後はスマホのアプリにも表示されます。反映まで数時間〜1日ほどかかることがあります。
+          </p>
+        </>
+      ) : (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="p-btn p-btn--ghost"
+            onClick={handleGenerate}
+            disabled={loading}
+            style={{ fontSize: '0.9rem' }}
+          >
+            {loading ? '処理中...' : '🔄 URL を発行 / 再発行'}
+          </button>
+          <button
+            type="button"
+            className="p-btn p-btn--ghost"
+            onClick={handleRevoke}
+            disabled={loading}
+            style={{ fontSize: '0.9rem', color: 'var(--red)' }}
+          >
+            連携を止める
+          </button>
+        </div>
+      )}
     </div>
   );
 }

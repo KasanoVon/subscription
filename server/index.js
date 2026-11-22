@@ -11,6 +11,7 @@ import bcrypt from 'bcryptjs';
 import webpush from 'web-push';
 import cron from 'node-cron';
 import { addDaysToDateStr, getTodayJST, advanceToCurrent } from './dates.js';
+import { buildCalendar } from './calendar.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_DAYS = 30;
@@ -88,6 +89,16 @@ await client.executeMultiple(`
 try {
   await db.run('ALTER TABLE users ADD COLUMN recovery_code_hash TEXT');
 } catch { /* カラムが既に存在する場合は無視 */ }
+
+// カレンダー配信用の秘密 URL のトークン（1ユーザー1つ、SHA-256 で保存）
+await db.run(`
+  CREATE TABLE IF NOT EXISTS calendar_tokens (
+    user_id TEXT PRIMARY KEY,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )
+`);
 
 // VAPID キー初期化（DBに保存して永続化）
 let vapidPublicKey = '';
@@ -562,6 +573,74 @@ app.post('/api/auth/setup-recovery-code', async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ---- カレンダー配信（ICS） ----
+// カレンダーアプリはヘッダーを付けられないため、URL に含めた秘密のトークンで本人を識別する。
+// トークンは 32 バイト乱数なので bcrypt は不要。SHA-256 で保存し、ハッシュで直接引く。
+const hashCalendarToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+app.post('/api/calendar-token', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+
+    const token = `snc_${crypto.randomBytes(32).toString('hex')}`;
+    // 1ユーザー1つ。再発行すると古い URL は読めなくなる
+    await db.run(
+      `INSERT INTO calendar_tokens (user_id, token_hash, created_at) VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET token_hash = excluded.token_hash, created_at = excluded.created_at`,
+      user.id,
+      hashCalendarToken(token),
+      new Date().toISOString()
+    );
+    // URL は1回だけ返す（ハッシュしか保存しないので再表示できない）
+    return res.json({ url: `${req.protocol}://${req.get('host')}/api/calendar/${token}.ics` });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.delete('/api/calendar-token', async (req, res) => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) return res.status(401).json({ error: 'unauthorized' });
+    await db.run('DELETE FROM calendar_tokens WHERE user_id = ?', user.id);
+    return res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.get('/api/calendar/:file', async (req, res) => {
+  try {
+    const match = /^(snc_[0-9a-f]{64})\.ics$/.exec(req.params.file);
+    if (!match) return res.status(404).send('Not found');
+    const row = await db.get(
+      `SELECT us.state_json FROM calendar_tokens ct
+       LEFT JOIN user_states us ON us.user_id = ct.user_id
+       WHERE ct.token_hash = ?`,
+      hashCalendarToken(match[1])
+    );
+    if (!row) return res.status(404).send('Not found');
+
+    const state = row.state_json ? JSON.parse(row.state_json) : {};
+    const ics = buildCalendar(state, {
+      today: getTodayJST(),
+      appUrl: `${req.protocol}://${req.get('host')}/app`,
+    });
+    res.set({
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': 'inline; filename="subnote.ics"',
+      'Cache-Control': 'private, max-age=0',
+    });
+    return res.send(ics);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send('Server error');
   }
 });
 

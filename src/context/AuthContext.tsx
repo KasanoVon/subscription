@@ -74,6 +74,8 @@ interface AuthContextValue {
     newPassword: string
   ) => Promise<'ok' | 'invalid' | 'server_error'>;
   setupRecoveryCode: () => Promise<{ status: 'ok'; recoveryCode: string } | { status: 'server_error' }>;
+  setupCalendarFeed: () => Promise<{ status: 'ok'; url: string } | { status: 'server_error' }>;
+  revokeCalendarFeed: () => Promise<'ok' | 'server_error'>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -250,8 +252,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function setupCalendarFeed(): Promise<{ status: 'ok'; url: string } | { status: 'server_error' }> {
+    try {
+      const res = await fetch(`${API_BASE}/api/calendar-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (!res.ok) return { status: 'server_error' };
+      const data = (await res.json()) as { url: string };
+      return { status: 'ok', url: data.url };
+    } catch {
+      return { status: 'server_error' };
+    }
+  }
+
+  async function revokeCalendarFeed(): Promise<'ok' | 'server_error'> {
+    try {
+      const res = await fetch(`${API_BASE}/api/calendar-token`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      return res.ok ? 'ok' : 'server_error';
+    } catch {
+      return 'server_error';
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ authState, login, register, logout, resetPassword, setupRecoveryCode }}>
+    <AuthContext.Provider
+      value={{
+        authState,
+        login,
+        register,
+        logout,
+        resetPassword,
+        setupRecoveryCode,
+        setupCalendarFeed,
+        revokeCalendarFeed,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

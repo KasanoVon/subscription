@@ -44,6 +44,7 @@ npm test
 | `user_states` | `AppState` 全体を JSON ブロブで保存（サブスクリプション + 通貨設定） |
 | `push_subscriptions` | Web Push 購読情報 |
 | `app_settings` | VAPID キーなどアプリ設定 |
+| `calendar_tokens` | カレンダー配信 URL のトークン（SHA-256、1ユーザー1つ） |
 
 **認証:** `Authorization: Bearer <token>` ヘッダー、セッション有効期限は30日。
 
@@ -73,6 +74,16 @@ npm test
 - Android アプリ（Capacitor の WebView）は通常 Push API を持たないため Web Push は届かない見込み（実機未確認）。その場合 `usePushNotifications` の `supported` が false になり、ユーザーメニューの「更新通知」も表示されない
 - 環境変数: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`（省略時は DB 管理）
 - フック: `src/hooks/usePushNotifications.ts`
+
+---
+
+## カレンダー配信（ICS）
+
+- アカウント設定の「📅 カレンダー連携」で秘密の URL を発行（`POST /api/calendar-token`、`DELETE` で停止）。URL は発行時に1回だけ表示し、再発行で古い URL は 404 になる
+- `GET /api/calendar/snc_<64桁hex>.ics`：アクティブなサブスクの更新日を1年先まで終日の予定として返す。前日 9:00 の VALARM 付き
+- カレンダーアプリはヘッダーを付けられないため、URL のトークンだけで認証する。読めるのは更新日・金額・支払い方法のみ
+- ICS の組み立ては `server/calendar.js`（CRLF・75オクテット折り返し・TEXT エスケープ・安定した UID）
+- Web Push が届かない Android アプリ利用者でも、カレンダーアプリの通知で更新日を知らせられる
 
 ---
 
@@ -118,6 +129,8 @@ server/
   index.js          # Express API サーバー（認証・状態保存・Push通知）
   dates.js          # サーバー側の日付計算（JST の今日・月末丸め・更新日の繰り上げ）
   dates.test.js
+  calendar.js       # カレンダー配信（ICS）の組み立て
+  calendar.test.js
 src/
   types.ts          # 型定義・カテゴリ定数
   App.tsx           # ルーティング・SVGフィルター注入
