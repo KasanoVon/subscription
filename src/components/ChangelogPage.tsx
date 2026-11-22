@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { JA_COMMIT_MESSAGES } from './changelogTranslations';
 
 interface GitHubCommit {
   sha: string;
@@ -38,7 +39,8 @@ function parseCommit(raw: GitHubCommit): ParsedCommit | null {
   if (!match) return null;
   const [, type, message] = match;
   if (!TYPE_MAP[type]) return null;
-  return { sha: raw.sha.slice(0, 7), date: raw.commit.author.date, type, message };
+  const sha = raw.sha.slice(0, 7);
+  return { sha, date: raw.commit.author.date, type, message: JA_COMMIT_MESSAGES[sha] ?? message };
 }
 
 function formatCommitDate(dateStr: string): string {
