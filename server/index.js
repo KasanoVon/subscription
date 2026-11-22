@@ -242,6 +242,9 @@ if (isProd) {
   // 同じページが2つの URL で見えないよう、ファイル名での直接アクセスは正式な URL へ
   app.get('/index.html', (_req, res) => res.redirect(301, '/'));
   app.get('/app.html', (_req, res) => res.redirect(301, '/app'));
+  app.get('/usd-jpy.html', (_req, res) => res.redirect(301, '/usd-jpy'));
+  // ログイン不要の静的ページ（拡張子なしの URL で返す）
+  app.get('/usd-jpy', (_req, res) => res.sendFile(path.join(distPath, 'usd-jpy.html')));
   // / は静的な紹介ページ（dist/index.html）がそのまま返る
   app.use(express.static(distPath));
 }

@@ -81,10 +81,11 @@ npm test
 
 - `/`：静的な紹介ページ（`index.html` + `src/styles/landing.css`、JavaScript のバンドルなし）。検索エンジン向けの本文・構造化データ（WebApplication / FAQPage）を持つ。FAQ を変えるときは、画面の文と JSON-LD の文を必ず一字一句そろえる（Google は両者の一致を求める）
 - 紹介ページ冒頭のスクリプトで、ログイン済み（`subnote_auth_user` あり）と Android アプリ（`window.Capacitor`）は `/app` へ移動する。Capacitor は本番の `/` を開くため
+- `/usd-jpy`：ログイン不要の「サブスクのドル円換算ツール」（`usd-jpy.html` + `src/pages/usdJpy.ts`、計算は `src/utils/usdJpy.ts`）。「サブスク ドル円 換算」などの検索語向け。レートはブラウザから open.er-api.com を取得し、失敗時は150円。出典リンク（Rates By Exchange Rate API）は利用条件なので消さない。本番は `server/index.js`、開発は `vite.config.ts` の `STATIC_PAGES` で拡張子なしの URL に対応
 - `/login`・`/app`・`/changelog`：React のアプリ画面（`app.html`）。本番では `server/pages.js` がページごとのタイトル・説明文・canonical・OGP を埋め込む。`/app` は noindex。開発時は `vite.config.ts` のプラグインが同じパスで `app.html` を返す
 - 上記以外のパスは 404（`public/404.html`）。`/index.html`・`/app.html` は正式な URL へ 301
 - シェア画像は `public/og-image.png`（1200×630）、紹介ページの画面写真は `public/screenshot-dashboard.webp`
-- 新しいページを増やしたら `server/pages.js`・`vite.config.ts` の `APP_ROUTES`・`src/App.tsx` の `PAGE_TITLES`・`public/sitemap.xml` をそろえる
+- アプリ画面のページを増やしたら `server/pages.js`・`vite.config.ts` の `APP_ROUTES`・`src/App.tsx` の `PAGE_TITLES`・`public/sitemap.xml` をそろえる。静的なページなら `vite.config.ts` の入力と `STATIC_PAGES`・`server/index.js` のルート・`public/sitemap.xml` をそろえる
 
 ---
 
@@ -148,6 +149,7 @@ server/
   calendar.test.js
 index.html          # / の紹介ページ（静的）
 app.html            # アプリ画面（React）の HTML
+usd-jpy.html        # /usd-jpy のドル円換算ツール（静的）
 src/
   types.ts          # 型定義・カテゴリ定数
   App.tsx           # ルーティング・SVGフィルター注入

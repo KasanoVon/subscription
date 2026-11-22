@@ -5,7 +5,11 @@ import { fileURLToPath } from 'node:url'
 // アプリ画面（React）のページ。本番では server/index.js が同じパスに app.html を返す
 const APP_ROUTES = ['/login', '/app', '/changelog']
 
-// 開発サーバーでも、アプリ画面のパスでは紹介ページ（index.html）ではなく app.html を返す
+// 静的なページ（拡張子なしの URL → HTML ファイル）。本番では server/index.js が同じ対応で返す
+const STATIC_PAGES: Record<string, string> = { '/usd-jpy': '/usd-jpy.html' }
+
+// 開発サーバーでも本番と同じ URL で各ページを返す
+// （アプリ画面のパスは紹介ページ（index.html）ではなく app.html）
 function appRoutesInDev(): Plugin {
   return {
     name: 'subnote-app-routes',
@@ -13,6 +17,7 @@ function appRoutesInDev(): Plugin {
       server.middlewares.use((req, _res, next) => {
         const pathname = req.url?.split('?')[0]
         if (pathname && APP_ROUTES.includes(pathname)) req.url = '/app.html'
+        else if (pathname && STATIC_PAGES[pathname]) req.url = STATIC_PAGES[pathname]
         next()
       })
     },
@@ -28,6 +33,8 @@ export default defineConfig({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         // ログイン・アプリ画面（React）
         app: fileURLToPath(new URL('./app.html', import.meta.url)),
+        // サブスクのドル円換算ツール（ログイン不要）
+        usdJpy: fileURLToPath(new URL('./usd-jpy.html', import.meta.url)),
       },
     },
   },
