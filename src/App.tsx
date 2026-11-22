@@ -98,12 +98,12 @@ function AppDashboard({ userId, authToken }: { userId: string; authToken: string
           <span>
             お問い合わせ：
             <a
-              href="https://x.com/KasanoVon"
+              href="https://x.com/KasanoVonZ"
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: 'var(--ink)', textDecoration: 'underline' }}
             >
-              @KasanoVon
+              @KasanoVonZ
             </a>
             {' '}on X
           </span>
