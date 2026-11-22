@@ -15,6 +15,9 @@ npm run dev
 # 本番ビルド
 npm run build
 
+# テスト（Vitest。タイムゾーンは vitest.config.ts で Asia/Tokyo に固定）
+npm test
+
 # Railway へのデプロイは git push で自動実行（railway.toml 参照）
 ```
 
@@ -66,6 +69,8 @@ npm run build
 
 - VAPID キー: 起動時に DB から読み込み、なければ自動生成して保存
 - cronジョブ: 毎朝 9:00 JST（= 0:00 UTC）に更新日 1日前・3日前のサブスクリプションを通知
+  - 保存済みの `nextBillingDate` はアプリを開いたときにしか進まないため、判定前に `server/dates.js` の `advanceToCurrent()` で周期ぶん進める（クライアントの `advanceOverdueDates` と同じ結果になることをテストで保証）
+- Android アプリ（Capacitor の WebView）は通常 Push API を持たないため Web Push は届かない見込み（実機未確認）。その場合 `usePushNotifications` の `supported` が false になり、ユーザーメニューの「更新通知」も表示されない
 - 環境変数: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`（省略時は DB 管理）
 - フック: `src/hooks/usePushNotifications.ts`
 
@@ -111,6 +116,8 @@ npm run build
 ```
 server/
   index.js          # Express API サーバー（認証・状態保存・Push通知）
+  dates.js          # サーバー側の日付計算（JST の今日・月末丸め・更新日の繰り上げ）
+  dates.test.js
 src/
   types.ts          # 型定義・カテゴリ定数
   App.tsx           # ルーティング・SVGフィルター注入
@@ -129,7 +136,9 @@ src/
     usePushNotifications.ts  # Web Push 購読管理
   utils/
     currency.ts     # 通貨変換・フォーマット・月額/年額換算
+    currency.test.ts
     date.ts         # 日付ユーティリティ
+    date.test.ts
     servicePresets.ts # サービス名プリセット
   styles/
     pencil.css      # 手書き風スタイル

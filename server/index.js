@@ -10,6 +10,7 @@ import { createClient } from '@libsql/client';
 import bcrypt from 'bcryptjs';
 import webpush from 'web-push';
 import cron from 'node-cron';
+import { addDaysToDateStr, getTodayJST, advanceToCurrent } from './dates.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const SESSION_DAYS = 30;
@@ -129,17 +130,6 @@ async function initVapidKeys() {
 
 await initVapidKeys();
 
-// 通知送信ユーティリティ
-function addDaysToDateStr(dateStr, days) {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function getTodayJST() {
-  return new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
-}
-
 async function sendRenewalNotifications() {
   try {
     const today = getTodayJST();
@@ -160,11 +150,13 @@ async function sendRenewalNotifications() {
         const subs = state?.subscriptions ?? [];
 
         for (const sub of subs) {
-          if (sub.status !== 'active') continue;
+          if (sub.status !== 'active' || typeof sub.nextBillingDate !== 'string') continue;
 
+          // アプリを開いていない間は保存日付が過去のまま残るので、周期ぶん進めてから比べる
+          const next = advanceToCurrent(sub.nextBillingDate, sub.billingCycle, sub.customCycleDays, today);
           const daysUntil =
-            sub.nextBillingDate === in1day ? 1 :
-            sub.nextBillingDate === in3days ? 3 :
+            next === in1day ? 1 :
+            next === in3days ? 3 :
             null;
           if (daysUntil === null) continue;
 
